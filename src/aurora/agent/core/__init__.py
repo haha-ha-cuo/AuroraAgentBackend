@@ -1,12 +1,12 @@
 """核心层：委派图与规划器。"""
 
 from .graph import build_delegation_graph
-from .planner import MockPlanner, Planner
+from .planner import LLMPlanner, Planner
 from .state import DelegationState, Effort, Result, Task
 
 __all__ = [
     "build_delegation_graph",
-    "MockPlanner",
+    "LLMPlanner",
     "Planner",
     "DelegationState",
     "Effort",

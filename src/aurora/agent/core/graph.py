@@ -9,13 +9,13 @@ from langgraph.types import Send
 
 from ...logging import get_logger
 from ..tools.base import Tool
-from .planner import Planner
+from .planner import LLMPlanner
 from .state import DelegationState, Result
 
 log = get_logger(__name__)
 
 
-def build_delegation_graph(planner: Planner, tools: Mapping[str, Tool]):
+def build_delegation_graph(planner: LLMPlanner, tools: Mapping[str, Tool]):
     """构建并编译委派图。
 
     Args:

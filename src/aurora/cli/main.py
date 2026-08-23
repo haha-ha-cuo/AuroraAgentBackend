@@ -11,13 +11,14 @@ import argparse
 from rich.console import Console
 from rich.tree import Tree
 
-from aurora.agent.core import MockPlanner, build_delegation_graph
+from aurora.agent.core import LLMPlanner, build_delegation_graph
+from aurora.agent.model_access import build_llm
 from aurora.agent.tools import ListFilesTool, ReadFileTool
 from aurora.logging import get_logger
 
 log = get_logger(__name__)
 
-DEFAULT_GOAL = "列出项目文件结构，并阅读 README.md 总结项目定位"
+DEFAULT_GOAL = "找到main.py并且分析这份文件的代码在干什么"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", title="子命令")
 
-    demo_parser = subparsers.add_parser("demo", help="运行最小纵向切片 demo（mock 模式）")
+    demo_parser = subparsers.add_parser("demo", help="运行最小纵向切片 demo")
     demo_parser.add_argument("goal", nargs="?", default=DEFAULT_GOAL, help="项目目标")
 
     subparsers.add_parser("eval", help="运行评估与校准（阶段二）")
@@ -41,10 +42,11 @@ def _run_demo(goal: str) -> int:
         "list_files": ListFilesTool(),
         "read_file": ReadFileTool(),
     }
-    planner = MockPlanner()
+
+    llm = build_llm()  # 配置不齐会直接抛异常
+    planner = LLMPlanner(llm, tools)
     graph = build_delegation_graph(planner, tools)
 
-    console.print("[bold]模式:[/bold] mock")
     console.print(f"[bold]目标:[/bold] {goal}")
     console.print()
 

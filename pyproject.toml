@@ -4,7 +4,9 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "langchain-core>=0.3.0",
+    "langchain-openai>=1.6.0",
     "langgraph>=0.2.0",
+    "python-dotenv>=1.2.3",
     "rich>=15.0.0",
 ]
 
