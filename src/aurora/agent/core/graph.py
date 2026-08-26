@@ -8,23 +8,30 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from ...logging import get_logger
+from ..safety.gate import ConfirmationGate, DenyApprover
 from ..tools.base import Tool
-from .planner import LLMPlanner
+from .planner import Planner
 from .state import DelegationState, Result
 
 log = get_logger(__name__)
 
 
-def build_delegation_graph(planner: LLMPlanner, tools: Mapping[str, Tool]):
+def build_delegation_graph(
+    planner: Planner,
+    tools: Mapping[str, Tool],
+    gate: ConfirmationGate | None = None,
+):
     """构建并编译委派图。
 
     Args:
         planner: 规划器（MockPlanner 或未来的 LLMPlanner）。
         tools: 工具注册表 ``{name: Tool}``。
+        gate: 工具执行前的确认门，缺省只放行只读工具。
 
     Returns:
         编译后的 LangGraph 图。
     """
+    gate = gate or ConfirmationGate(DenyApprover())
 
     def plan_node(state: DelegationState) -> dict:
         tasks = planner.plan(state["goal"])
@@ -46,7 +53,7 @@ def build_delegation_graph(planner: LLMPlanner, tools: Mapping[str, Tool]):
         task = state["current_task"]
         tool = tools[task["tool"]]
         try:
-            output = tool.run(**task["args"])
+            output = gate.invoke(tool, task["args"])
             ok = True
             log.info("[%s] ✓ %s", task["effort"].value, task["description"])
         except Exception as exc:  # noqa: BLE001

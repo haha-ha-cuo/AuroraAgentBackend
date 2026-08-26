@@ -32,3 +32,8 @@ START → plan（规划）→ dispatch（fan-out 条件边）→ execute（并�
 - `graph.py`：`build_delegation_graph(planner, tools)` 构建并编译委派图
 
 依赖 langchain-core + langgraph（不引入 langchain 元包，见 ADR-003）。
+
+## 我的构想
+
+目前的工作链路过于简单了，我希望规划阶段后用分支结构让模型决定是否激活门，询问用户更多内容，然后返回规划阶段，当模型认为没有要继续询问的内容后即可跳出循环。
+我希望用户还有增加断点的功能，方便用户精细控制，同时展示调用轨迹，将调用轨迹反馈给eval集，让用户给模型的结果给出评分，优化日后模型调用。

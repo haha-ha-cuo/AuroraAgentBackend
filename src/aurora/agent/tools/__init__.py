@@ -1,6 +1,20 @@
-"""工具层：Tool 抽象 + 内置工具。"""
+"""工具层：Tool 抽象 + 声明式注册 + 内置工具。"""
 
-from .base import RiskLevel, Tool
-from .builtin import ListFilesTool, ReadFileTool
+from . import builtin, sandbox_tools  # noqa: F401  触发工具注册
+from .base import (
+    RiskLevel,
+    Tool,
+    clear_tools,
+    format_tools_for_llm,
+    get_available_tools,
+    tool,
+)
 
-__all__ = ["RiskLevel", "Tool", "ListFilesTool", "ReadFileTool"]
+__all__ = [
+    "RiskLevel",
+    "Tool",
+    "tool",
+    "get_available_tools",
+    "clear_tools",
+    "format_tools_for_llm",
+]

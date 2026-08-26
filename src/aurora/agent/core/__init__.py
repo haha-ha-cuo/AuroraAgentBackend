@@ -1,7 +1,8 @@
 """核心层：委派图与规划器。"""
 
 from .graph import build_delegation_graph
-from .planner import LLMPlanner, Planner
+from .llm_planner import LLMPlanner
+from .planner import Planner
 from .state import DelegationState, Effort, Result, Task
 
 __all__ = [
