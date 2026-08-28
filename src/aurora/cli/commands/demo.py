@@ -6,10 +6,12 @@ import argparse
 
 from rich.console import Console
 from rich.tree import Tree
+from langgraph.checkpoint.memory import InMemorySaver
 
-from aurora.agent.core import LLMPlanner, build_delegation_graph
+from aurora.agent.core import LLMClarifier, LLMPlanner, build_delegation_graph, invoke_with_responder
 from aurora.agent.model_access import build_llm
 from aurora.agent.tools import get_available_tools
+from aurora.cli.workflow import respond_to_interrupt
 
 DEFAULT_GOAL = "找到main.py并且分析这份文件的代码在干什么"
 
@@ -26,12 +28,17 @@ def _run(args: argparse.Namespace) -> int:
 
     llm = build_llm()
     planner = LLMPlanner(llm, tools)
-    graph = build_delegation_graph(planner, tools)
+    graph = build_delegation_graph(
+        planner,
+        tools,
+        clarifier=LLMClarifier(llm),
+        checkpointer=InMemorySaver(),
+    )
 
     console.print(f"[bold]目标:[/bold] {args.goal}")
     console.print()
 
-    state = graph.invoke({"goal": args.goal})
+    state = invoke_with_responder(graph, args.goal, lambda request: respond_to_interrupt(console, request))
 
     tree = Tree("委派树")
     for task in state["tasks"]:
@@ -41,4 +48,9 @@ def _run(args: argparse.Namespace) -> int:
 
     console.print("[bold]汇总报告:[/bold]")
     console.print(state["report"])
+    console.print()
+    trace = Tree("调用轨迹")
+    for event in state["trace"]:
+        trace.add(f"{event['node']} · {event['detail']}")
+    console.print(trace)
     return 0

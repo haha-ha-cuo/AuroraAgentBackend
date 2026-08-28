@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from .state import Effort, Task
@@ -11,6 +12,38 @@ class Planner(Protocol):
     """规划器协议：LLMPlanner 等实现共用同一接口。"""
 
     def plan(self, goal: str) -> list[Task]: ...
+
+
+@dataclass(frozen=True)
+class ClarificationDecision:
+    """规划是否需要用户补充信息。"""
+
+    needed: bool
+    question: str = ""
+    reason: str = ""
+
+
+class Clarifier(Protocol):
+    """判断当前计划是否需要用户澄清。"""
+
+    def assess(
+        self,
+        goal: str,
+        tasks: list[Task],
+        clarifications: list[dict[str, str]],
+    ) -> ClarificationDecision: ...
+
+
+class NoClarifier:
+    """始终接受当前计划。"""
+
+    def assess(
+        self,
+        goal: str,
+        tasks: list[Task],
+        clarifications: list[dict[str, str]],
+    ) -> ClarificationDecision:
+        return ClarificationDecision(needed=False)
 
 
 _HIGH_KEYWORDS = ("重构", "实现", "开发", "编写", "创建", "设计", "修改", "新增")

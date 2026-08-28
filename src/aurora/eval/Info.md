@@ -5,3 +5,4 @@
 - 最小 eval 集：确定性 mock 模式、零 token 成本、可反复跑、纳入 pytest 回归
 - 对照实验：`demo_agent.experiment`，多维 judge（完整/准确/简洁）+ low/medium/high 三档成本/质量对比
 - 覆盖易/难/真机（Blender execute 级）任务
+- `JsonlFeedbackStore`：保存目标、任务、报告、完整调用轨迹、1-5 分与用户评价

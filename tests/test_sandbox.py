@@ -18,6 +18,12 @@ def test_write_and_read_roundtrip(tmp_path):
     assert "print(1)" in sandbox.read_file("src/a.py")
 
 
+def test_read_only_mode_rejects_direct_writes(tmp_path):
+    sandbox = Sandbox(root=tmp_path, executor=UnsafeSubprocessExecutor(), mode="read-only")
+    with pytest.raises(PermissionError, match="只读"):
+        sandbox.write_file("blocked.txt", "x")
+
+
 def test_absolute_path_rejected(tmp_path):
     sandbox = make_sandbox(tmp_path)
     with pytest.raises(ValueError):

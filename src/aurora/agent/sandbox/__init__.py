@@ -40,7 +40,7 @@ def create_sandbox(
         executor = UnsafeSubprocessExecutor()
     else:
         executor = LocalSandboxExecutor(mode=mode)
-    return Sandbox(root=root, executor=executor, default_timeout=default_timeout)
+    return Sandbox(root=root, executor=executor, default_timeout=default_timeout, mode=mode)
 
 
 def set_sandbox(sandbox: Sandbox) -> None:

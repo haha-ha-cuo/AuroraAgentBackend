@@ -10,7 +10,7 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Mapping, get_args, get_origin
+from typing import Any, Callable, Mapping, get_args, get_origin, get_type_hints
 
 F = Callable[..., str]
 
@@ -43,9 +43,14 @@ class Tool:
         default_factory=lambda: {"type": "object", "properties": {}}
     )
 
+    def __post_init__(self) -> None:
+        """为直接创建的工具补全参数结构。"""
+        if not self.params_schema.get("properties"):
+            self.params_schema = _schema_from_signature(self.func)
+
     def run(self, **kwargs: Any) -> str:
         """执行工具并返回文本结果。"""
-        return self.func(**kwargs)
+        return self.func(**_prepare_arguments(self.func, kwargs))
 
 
 # ---------------------------------------------------------------------------
@@ -139,16 +144,55 @@ def _annotation_to_json_type(annotation: Any) -> str:
     return _JSON_TYPE_MAP.get(annotation, "string")
 
 
+def _base_annotation(annotation: Any) -> Any:
+    """提取可空类型中的实际参数类型。"""
+    origin = get_origin(annotation)
+    if origin is None:
+        return annotation
+    args = [value for value in get_args(annotation) if value is not type(None)]
+    return args[0] if len(args) == 1 else annotation
+
+
+def _coerce_value(name: str, value: Any, annotation: Any) -> Any:
+    """把模型参数转换成函数声明的基础类型。"""
+    target = _base_annotation(annotation)
+    if value is None or target not in _JSON_TYPE_MAP or isinstance(value, target):
+        return value
+    try:
+        if target is bool and isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "y"}:
+                return True
+            if normalized in {"false", "0", "no", "n"}:
+                return False
+            raise ValueError("应为 true 或 false")
+        return target(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"工具参数 {name} 无法转换为 {target.__name__}: {value!r}") from exc
+
+
+def _prepare_arguments(func: Callable[..., str], kwargs: Mapping[str, Any]) -> dict[str, Any]:
+    """校验工具参数并按函数类型注解转换。"""
+    signature = inspect.signature(func)
+    bound = signature.bind(**kwargs)
+    annotations = get_type_hints(func)
+    return {
+        name: _coerce_value(name, value, annotations.get(name, inspect.Parameter.empty))
+        for name, value in bound.arguments.items()
+    }
+
+
 def _schema_from_signature(func: Callable[..., str]) -> dict[str, Any]:
     """从函数签名（类型注解 + 默认值）生成参数 JSON Schema。"""
     sig = inspect.signature(func)
+    annotations = get_type_hints(func)
     properties: dict[str, Any] = {}
     required: list[str] = []
     for pname, param in sig.parameters.items():
         if pname in ("self", "cls"):
             continue
         prop: dict[str, Any] = {
-            "type": _annotation_to_json_type(param.annotation),
+            "type": _annotation_to_json_type(annotations.get(pname, param.annotation)),
         }
         if param.default is not inspect.Parameter.empty:
             prop["default"] = param.default

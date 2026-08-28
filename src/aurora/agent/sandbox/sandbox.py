@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .executor import ExecutionResult, SandboxExecutor
+from .executor import ExecutionResult, SandboxExecutor, SandboxMode
 from .local import LocalSandboxExecutor
 
 DEFAULT_ROOT = Path(os.environ.get("AURORA_SANDBOX_DIR") or Path.home() / ".aurora" / "sandbox")
@@ -21,11 +21,13 @@ class Sandbox:
         *,
         executor: SandboxExecutor | None = None,
         default_timeout: float = 30.0,
+        mode: SandboxMode = "workspace-write",
     ) -> None:
         self.root = (Path(root) if root is not None else DEFAULT_ROOT).expanduser().resolve()
         self.root.mkdir(parents=True, exist_ok=True)
-        self._executor = executor or LocalSandboxExecutor()
+        self._executor = executor or LocalSandboxExecutor(mode=mode)
         self._default_timeout = default_timeout
+        self.mode = mode
 
     @property
     def backend_name(self) -> str:
@@ -44,6 +46,7 @@ class Sandbox:
 
     def write_file(self, path: str, content: str) -> str:
         """在沙箱内写入 UTF-8 文本文件。"""
+        self._ensure_writable()
         target = self.resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
@@ -98,6 +101,7 @@ class Sandbox:
 
     def run_python(self, code: str, timeout: float | None = None) -> ExecutionResult:
         """把代码写入沙箱并运行。"""
+        self._ensure_writable()
         script = self.root / "__aurora_main__.py"
         script.write_text(code, encoding="utf-8")
         return self._executor.run(
@@ -105,6 +109,11 @@ class Sandbox:
             cwd=self.root,
             timeout=timeout or self._default_timeout,
         )
+
+    def _ensure_writable(self) -> None:
+        """拒绝只读模式下由门面直接发起的写入。"""
+        if self.mode == "read-only":
+            raise PermissionError("只读沙箱不允许写入文件")
 
 
 def _should_skip(rel: Path) -> bool:

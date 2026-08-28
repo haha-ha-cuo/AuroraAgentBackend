@@ -33,6 +33,27 @@ class Result(TypedDict):
     output: str
 
 
+class Clarification(TypedDict):
+    """一轮用户澄清。"""
+
+    question: str
+    answer: str
+
+
+class TraceEvent(TypedDict):
+    """图中一次节点调用的轨迹。"""
+
+    node: str
+    detail: str
+
+
+class Evaluation(TypedDict):
+    """用户对本次执行结果的评价。"""
+
+    score: int
+    comment: str
+
+
 class DelegationState(TypedDict):
     """委派图状态。
 
@@ -45,3 +66,9 @@ class DelegationState(TypedDict):
     current_task: NotRequired[Task]
     results: Annotated[list[Result], operator.add]
     report: str
+    clarification_needed: NotRequired[bool]
+    clarification_question: NotRequired[str]
+    clarifications: NotRequired[list[Clarification]]
+    clarification_count: NotRequired[int]
+    trace: Annotated[list[TraceEvent], operator.add]
+    evaluation: NotRequired[Evaluation]

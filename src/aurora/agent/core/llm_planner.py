@@ -5,10 +5,13 @@ from __future__ import annotations
 from typing import Literal
 
 from langchain_core.prompts import ChatPromptTemplate
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
+
+from aurora.text import sanitize_text
 
 from ...logging import get_logger
 from ..tools.base import Tool, format_tools_for_llm
+from .planner import ClarificationDecision
 from .state import Effort, Task
 
 log = get_logger(__name__)
@@ -21,7 +24,7 @@ class PlannedTask(BaseModel):
     description: str = ""
     effort: Literal["low", "medium", "high"]
     tool: str
-    args: dict = {}
+    args: dict = Field(default_factory=dict)
 
     @field_validator("id", mode="before")
     @classmethod
@@ -34,6 +37,14 @@ class Plan(BaseModel):
     """LLM 规划出的任务列表。"""
 
     tasks: list[PlannedTask]
+
+
+class ClarificationAssessment(BaseModel):
+    """LLM 对当前计划完整性的判断。"""
+
+    needed: bool
+    question: str = ""
+    reason: str = ""
 
 
 PLANNER_SYSTEM = """
@@ -61,6 +72,18 @@ PLANNER_SYSTEM = """
 最多 8 个任务，任务之间尽量独立以便并行。
 """
 
+CLARIFIER_SYSTEM = """
+你负责判断执行计划是否缺少必须由用户决定的信息。
+
+只有缺少的信息会显著改变执行目标、范围或结果，且无法安全采用合理默认值时，才需要澄清。
+不要询问可从工具获取的信息，不要重复已经问过的问题，每轮最多提出一个简短问题。
+
+必须只输出 JSON：
+{{"needed": true, "question": "需要询问的问题", "reason": "判断理由"}}
+不需要澄清时输出：
+{{"needed": false, "question": "", "reason": "判断理由"}}
+"""
+
 
 class LLMPlanner:
     """基于 LLM 的规划器：用结构化输出把目标拆成任务列表。"""
@@ -81,6 +104,7 @@ class LLMPlanner:
         self._tool_desc = tool_desc
 
     def plan(self, goal: str) -> list[Task]:
+        goal = sanitize_text(goal)
         log.info("LLM 规划开始，目标：%s", goal)
         log.info("可用工具：%s", ", ".join(self._tool_names))
 
@@ -121,3 +145,42 @@ class LLMPlanner:
             }
             for t in plan.tasks
         ]
+
+
+class LLMClarifier:
+    """使用结构化输出判断计划是否需要用户澄清。"""
+
+    def __init__(self, llm) -> None:
+        self._llm = llm.with_structured_output(
+            ClarificationAssessment,
+            method="json_mode",
+        )
+        self._prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", CLARIFIER_SYSTEM),
+                (
+                    "human",
+                    "用户目标：\n{goal}\n\n当前计划：\n{tasks}\n\n已有澄清：\n{clarifications}",
+                ),
+            ]
+        )
+
+    def assess(
+        self,
+        goal: str,
+        tasks: list[Task],
+        clarifications: list[dict[str, str]],
+    ) -> ClarificationDecision:
+        goal = sanitize_text(goal)
+        result = (self._prompt | self._llm).invoke(
+            {
+                "goal": goal,
+                "tasks": tasks,
+                "clarifications": clarifications,
+            }
+        )
+        return ClarificationDecision(
+            needed=result.needed,
+            question=result.question.strip(),
+            reason=result.reason.strip(),
+        )

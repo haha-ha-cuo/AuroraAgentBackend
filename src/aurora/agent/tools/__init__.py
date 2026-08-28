@@ -9,6 +9,7 @@ from .base import (
     get_available_tools,
     tool,
 )
+from .sandbox_tools import build_sandbox_tools
 
 __all__ = [
     "RiskLevel",
@@ -17,4 +18,5 @@ __all__ = [
     "get_available_tools",
     "clear_tools",
     "format_tools_for_llm",
+    "build_sandbox_tools",
 ]

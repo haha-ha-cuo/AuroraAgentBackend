@@ -4,22 +4,28 @@
 
 ## 委派图结构
 
-LangGraph `StateGraph`，四阶段：
+LangGraph `StateGraph`，主链路与澄清循环：
 
 ```
-START → plan（规划）→ dispatch（fan-out 条件边）→ execute（并行执行叶子任务）→ summarize（汇总）→ END
+START → plan → clarify ──无需澄清──→ dispatch → execute → summarize → [feedback] → END
+                    └──需要澄清──→ ask_user ──恢复──→ plan
 ```
 
 - `plan`：调用 `Planner.plan(goal)` 产出 `tasks: list[Task]`
+- `clarify`：调用 `Clarifier.assess(...)` 判断当前目标和计划是否缺少用户决策
+- `ask_user`：通过 LangGraph `interrupt` 暂停，恢复后把回答加入上下文并重新规划
 - `dispatch`：条件边函数，按 `tasks` 返回 `list[Send]` 动态 fan-out
 - `execute`：每个 `Send` 分支并行执行一个叶子任务（经工具），产出 `results`（用 `operator.add` reducer 累加）
 - `summarize`：把 `results` 合成 `report`
+- `feedback`：可选评分中断，将 1-5 分、文字反馈和轨迹交给 `feedback_sink`
 
-> 并行用 LangGraph `Send` API（`add_conditional_edges` 的条件函数返回 `list[Send]`）。生产化时再引入子图（Subgraph）与检查点（Checkpoint）。
+澄清默认最多三轮，避免模型反复询问形成死循环。启用人工中断时应传入 checkpointer，并在每次调用配置稳定的 `thread_id`。`interrupt_before` / `interrupt_after` 可在任意节点增加静态断点。
+
+`trace` 使用 reducer 汇集 plan / clarify / ask_user / execute / summarize / feedback 调用轨迹。`JsonlFeedbackStore` 可把已评分轨迹追加到 eval JSONL 集。
 
 ## 状态模型
 
-见 `state.py`：`DelegationState`（goal / tasks / current_task / results / report）。
+见 `state.py`：`DelegationState`（目标、任务、澄清历史、结果、报告、轨迹与评分）。
 
 ## 推理强度（reasoning effort）
 
@@ -28,12 +34,8 @@ START → plan（规划）→ dispatch（fan-out 条件边）→ execute（并�
 ## 文件划分
 
 - `state.py`：`Effort` / `Task` / `Result` / `DelegationState`
-- `planner.py`：`Planner` 协议 + `MockPlanner`（确定性，预留 `LLMPlanner`）
+- `planner.py`：`Planner` / `Clarifier` 协议及默认的 `NoClarifier`
+- `llm_planner.py`：`LLMPlanner` 与 `LLMClarifier`
 - `graph.py`：`build_delegation_graph(planner, tools)` 构建并编译委派图
 
 依赖 langchain-core + langgraph（不引入 langchain 元包，见 ADR-003）。
-
-## 我的构想
-
-目前的工作链路过于简单了，我希望规划阶段后用分支结构让模型决定是否激活门，询问用户更多内容，然后返回规划阶段，当模型认为没有要继续询问的内容后即可跳出循环。
-我希望用户还有增加断点的功能，方便用户精细控制，同时展示调用轨迹，将调用轨迹反馈给eval集，让用户给模型的结果给出评分，优化日后模型调用。

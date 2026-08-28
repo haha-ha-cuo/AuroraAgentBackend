@@ -60,7 +60,7 @@ src/aurora/
 │   ├── cache/          # 缓存层（待实现）
 │   ├── mcp/            # MCP 集成（待实现）
 │   ├── store/          # SQLite 持久化（待实现）
-│   └── transport/      # 运行时协议 / stdio NDJSON（待实现）
+│   └── transport/      # 运行时协议 / stdio NDJSON
 └── eval/               # 评估与校准（待实现）
 tests/                  # pytest 测试
 ```
@@ -93,6 +93,8 @@ uv run aurora demo "列出项目文件结构"
 ```bash
 uv run aurora serve
 uv run aurora serve --mode read-only --approve never
+uv run aurora serve --feedback-file .aurora/eval-feedback.jsonl
+uv run aurora serve --sandbox-dir /path/to/project
 ```
 
 服务启动后支持：
@@ -106,7 +108,23 @@ uv run aurora serve --mode read-only --approve never
 /exit          停止服务
 ```
 
-`/say` 和 `/plan` 不执行工具；`/run` 使用启动参数指定的确认门与本机沙箱。
+`serve` 默认以启动命令时的当前目录作为工作区，也可通过 `--sandbox-dir` 指定项目目录。`/say` 和 `/plan` 不执行工具；`/run` 使用启动参数指定的确认门与本机沙箱。规划信息不足时会暂停询问并带回答重新规划；执行结束会展示调用轨迹。指定 `--feedback-file` 后还会询问 1-5 分和文字评价，并追加保存到 JSONL 评估集。
+
+### 启动桌面前端运行时
+
+```bash
+uv run aurora runtime
+```
+
+运行时通过 stdin/stdout 交换逐行 JSON，不监听本地端口。前端先调用 `workspace.validate` 校验系统目录选择器返回的路径，再通过 `session.create` 创建绑定到该工作区的独立 Agent 会话。
+
+```json
+{"id":"1","method":"workspace.validate","params":{"path":"/path/to/project"}}
+{"id":"2","method":"session.create","params":{"workspacePath":"/path/to/project","sandboxMode":"workspace-write","approvalMode":"interactive"}}
+{"id":"3","method":"run.start","params":{"sessionId":"<session-id>","goal":"查看 Git 提交记录"}}
+```
+
+交互审批、目标澄清和结果评价分别通过 `approval.required`、`clarification.required` 和 `evaluation.required` 事件通知前端。前端使用事件中的 `sessionId`、`runId` 和 `interruptId` 调用 `run.resume`，完成后运行时广播 `run.completed`。
 
 ### 运行沙箱命令（让 Agent 写代码并运行）
 

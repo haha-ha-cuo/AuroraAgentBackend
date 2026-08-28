@@ -6,6 +6,7 @@ import threading
 from typing import Any, Mapping, Protocol
 
 from rich.console import Console
+from langgraph.types import interrupt
 
 from ...logging import get_logger
 from ..tools.base import RiskLevel, Tool
@@ -58,6 +59,25 @@ class InteractiveApprover:
         return answer in {"y", "yes"}
 
 
+class InterruptApprover:
+    """通过图中断把高风险工具审批交给上层应用。"""
+
+    def approve(self, tool: Tool, args: Mapping[str, Any]) -> bool:
+        if tool.risk == RiskLevel.READ:
+            return True
+        response = interrupt(
+            {
+                "kind": "approval",
+                "tool": tool.name,
+                "risk": tool.risk.value,
+                "args": dict(args),
+            }
+        )
+        if isinstance(response, Mapping):
+            return bool(response.get("approved", False))
+        return bool(response)
+
+
 class ConfirmationGate:
     """工具执行前的确认门，拒绝时抛出 ToolDeniedError。"""
 
@@ -74,6 +94,7 @@ def build_gate(mode: str = "interactive") -> ConfirmationGate:
     """按名称构建确认门。"""
     approvers: dict[str, Approver] = {
         "interactive": InteractiveApprover(),
+        "interrupt": InterruptApprover(),
         "always": AutoApprover(),
         "never": DenyApprover(),
     }

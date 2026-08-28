@@ -6,6 +6,7 @@ from .gate import (
     ConfirmationGate,
     DenyApprover,
     InteractiveApprover,
+    InterruptApprover,
     ToolDeniedError,
     build_gate,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "ConfirmationGate",
     "DenyApprover",
     "InteractiveApprover",
+    "InterruptApprover",
     "ToolDeniedError",
     "build_gate",
 ]
