@@ -8,6 +8,7 @@ from typing import Any, TextIO
 
 from aurora.text import sanitize_text, sanitize_value
 
+from ..mcp import McpClientError, McpServerConfig
 from ..runtime import AgentRuntime, RunUpdate, validate_workspace
 
 PROTOCOL_VERSION = "1"
@@ -36,6 +37,8 @@ class RuntimeApi:
             return [{"id": request_id, "result": result}, *events]
         except MethodNotFoundError as exc:
             return [_error(request_id, "method_not_found", str(exc))]
+        except McpClientError as exc:
+            return [_error(request_id, "mcp_error", str(exc))]
         except (TypeError, ValueError) as exc:
             return [_error(request_id, "invalid_request", str(exc))]
         except Exception as exc:
@@ -56,10 +59,47 @@ class RuntimeApi:
                     "run.start",
                     "run.resume",
                     "session.close",
+                    "mcp.server.connect",
+                    "mcp.server.list",
+                    "mcp.server.disconnect",
+                    "mcp.package.catalog",
+                    "mcp.package.connect",
+                    "mcp.package.list",
+                    "mcp.package.disconnect",
                 ],
             }, []
         if method == "workspace.validate":
             return validate_workspace(_required_string(params, "path")).to_dict(), []
+        if method == "mcp.server.connect":
+            return self._runtime.connect_mcp_server(McpServerConfig.from_mapping(params)), []
+        if method == "mcp.server.list":
+            return {"servers": self._runtime.list_mcp_servers()}, []
+        if method == "mcp.server.disconnect":
+            name = _required_string(params, "name")
+            self._runtime.disconnect_mcp_server(name)
+            return {"name": name, "disconnected": True}, []
+        if method == "mcp.package.catalog":
+            return {
+                "packages": self._runtime.catalog_mcp_packages(),
+                "pluginErrors": self._runtime.mcp_package_plugin_errors(),
+            }, []
+        if method == "mcp.package.connect":
+            package_id = _required_string(params, "packageId")
+            instance_name = _optional_string(params, "instanceName") or package_id
+            config = params.get("config", {})
+            if not isinstance(config, Mapping):
+                raise ValueError("config 必须是对象")
+            return self._runtime.connect_mcp_package(
+                package_id,
+                instance_name,
+                config,
+            ), []
+        if method == "mcp.package.list":
+            return {"packages": self._runtime.list_connected_mcp_packages()}, []
+        if method == "mcp.package.disconnect":
+            instance_name = _required_string(params, "instanceName")
+            self._runtime.disconnect_mcp_package(instance_name)
+            return {"instanceName": instance_name, "disconnected": True}, []
         if method == "session.create":
             session = self._runtime.create_session(
                 _required_string(params, "workspacePath"),
@@ -88,6 +128,10 @@ class RuntimeApi:
             self._runtime.close_session(session_id)
             return {"sessionId": session_id, "closed": True}, []
         raise MethodNotFoundError(f"未知方法: {method}")
+
+    def close(self) -> None:
+        """关闭运行时持有的外部资源。"""
+        self._runtime.close()
 
 
 def serve_ndjson(api: RuntimeApi, input_stream: TextIO, output_stream: TextIO) -> None:

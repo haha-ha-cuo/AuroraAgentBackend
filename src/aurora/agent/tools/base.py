@@ -176,10 +176,18 @@ def _prepare_arguments(func: Callable[..., str], kwargs: Mapping[str, Any]) -> d
     signature = inspect.signature(func)
     bound = signature.bind(**kwargs)
     annotations = get_type_hints(func)
-    return {
-        name: _coerce_value(name, value, annotations.get(name, inspect.Parameter.empty))
-        for name, value in bound.arguments.items()
-    }
+    prepared: dict[str, Any] = {}
+    for name, value in bound.arguments.items():
+        parameter = signature.parameters[name]
+        if parameter.kind is inspect.Parameter.VAR_KEYWORD:
+            prepared.update(value)
+        else:
+            prepared[name] = _coerce_value(
+                name,
+                value,
+                annotations.get(name, inspect.Parameter.empty),
+            )
+    return prepared
 
 
 def _schema_from_signature(func: Callable[..., str]) -> dict[str, Any]:

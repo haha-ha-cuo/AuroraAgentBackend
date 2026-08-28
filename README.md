@@ -58,7 +58,7 @@ src/aurora/
 │   ├── model_access/   # 本地 API 管理层（待实现）
 │   ├── capability/     # 能力特化层（待实现）
 │   ├── cache/          # 缓存层（待实现）
-│   ├── mcp/            # MCP 集成（待实现）
+│   ├── mcp/            # 目录式 MCP 功能包、插件注册表、Client 与工具适配
 │   ├── store/          # SQLite 持久化（待实现）
 │   └── transport/      # 运行时协议 / stdio NDJSON
 └── eval/               # 评估与校准（待实现）
@@ -125,6 +125,24 @@ uv run aurora runtime
 ```
 
 交互审批、目标澄清和结果评价分别通过 `approval.required`、`clarification.required` 和 `evaluation.required` 事件通知前端。前端使用事件中的 `sessionId`、`runId` 和 `interruptId` 调用 `run.resume`，完成后运行时广播 `run.completed`。
+
+桌面运行时可以先读取功能包目录，再在创建 Agent 会话前连接 Blender、QQ 等能力：
+
+```json
+{"id":"m1","method":"mcp.package.catalog"}
+{"id":"m2","method":"mcp.package.connect","params":{"packageId":"blender","config":{}}}
+{"id":"m3","method":"mcp.package.list"}
+```
+
+QQ 包兼容不同 MCP Server，因此需要传入具体实现的启动命令：
+
+```json
+{"id":"q1","method":"mcp.package.connect","params":{"packageId":"qq","instanceName":"work-qq","config":{"command":"<已安装的 QQ MCP Server>","args":[],"env":{"QQ_BOT_TOKEN":"..."}}}}
+```
+
+连接成功后，Server 工具会以 `mcp.<instance>.<tool>` 注册到后续创建的 Agent 会话。MCP 明确标注 `readOnlyHint=true` 的工具按只读处理，其余工具默认需要执行审批；各功能包还能强化自身的风险策略。`mcp.server.*` 仍可作为底层调试接口。断开连接会关闭 SDK 会话并回收由 stdio transport 启动的子进程。
+
+一个软件对应 `mcp/packages/<软件>/` 目录，目录内的 `package.yaml` 声明软件信息、Server 启动配置、前端配置 Schema，以及功能到远端 MCP Tool 的映射和风险级别。例如 QQ 的 `message.send` 映射 `send_*`，Blender 的 `scene.modify` 映射对象修改工具。新增内置软件只需增加目录；第三方包可通过 `aurora.mcp_packages` entry point 返回同结构的目录路径，后续可以独立发布为插件而无需修改 Aurora 核心代码。
 
 ### 运行沙箱命令（让 Agent 写代码并运行）
 

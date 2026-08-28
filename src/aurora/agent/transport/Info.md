@@ -15,5 +15,12 @@
 - `run.start`
 - `run.resume`
 - `session.close`
+- `mcp.server.connect`
+- `mcp.server.list`
+- `mcp.server.disconnect`
+- `mcp.package.catalog`
+- `mcp.package.connect`
+- `mcp.package.list`
+- `mcp.package.disconnect`
 
 运行可能产生 `approval.required`、`clarification.required`、`evaluation.required` 和 `run.completed` 事件。文件夹选择器由桌面壳负责，运行时只接收、规范化并校验绝对路径。每个 session 独立持有 Sandbox、工具集合和 LangGraph checkpointer。

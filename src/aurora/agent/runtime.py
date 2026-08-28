@@ -16,6 +16,13 @@ from aurora.text import sanitize_text, sanitize_value
 
 from .core import LLMClarifier, LLMPlanner, build_delegation_graph
 from .model_access import build_llm
+from .mcp import (
+    McpPackage,
+    McpPackageRegistry,
+    McpServerConfig,
+    StdioMcpClient,
+    build_mcp_tools,
+)
 from .safety import build_gate
 from .sandbox import Sandbox, SandboxMode, create_sandbox
 from .tools import Tool, build_sandbox_tools, get_available_tools
@@ -182,12 +189,17 @@ class AgentRuntime:
         sandbox_factory: Callable[..., Sandbox] = create_sandbox,
         planner_factory: Callable[[Any, Mapping[str, Tool]], Any] = LLMPlanner,
         clarifier_factory: Callable[[Any], Any] = LLMClarifier,
+        mcp_packages: McpPackageRegistry | None = None,
     ) -> None:
         self._llm_factory = llm_factory
         self._sandbox_factory = sandbox_factory
         self._planner_factory = planner_factory
         self._clarifier_factory = clarifier_factory
         self._sessions: dict[str, AgentSession] = {}
+        self._mcp_packages = mcp_packages if mcp_packages is not None else McpPackageRegistry()
+        self._mcp_clients: dict[str, StdioMcpClient] = {}
+        self._mcp_tools: dict[str, dict[str, Tool]] = {}
+        self._mcp_package_ids: dict[str, str] = {}
 
     def create_session(
         self,
@@ -202,6 +214,8 @@ class AgentRuntime:
         sandbox = self._sandbox_factory(root=workspace.path, mode=sandbox_mode)
         tools = get_available_tools()
         tools.update(build_sandbox_tools(sandbox))
+        for server_tools in self._mcp_tools.values():
+            tools.update(server_tools)
         llm = self._llm_factory()
         planner = self._planner_factory(llm, tools)
         gate_mode = "interrupt" if approval_mode == "interactive" else approval_mode
@@ -230,3 +244,98 @@ class AgentRuntime:
         """关闭并移除会话。"""
         if self._sessions.pop(session_id, None) is None:
             raise ValueError(f"会话不存在: {session_id}")
+
+    def connect_mcp_server(self, config: McpServerConfig) -> dict[str, Any]:
+        """连接 MCP Server 并缓存其工具定义。"""
+        return self._connect_mcp(config)
+
+    def catalog_mcp_packages(self) -> list[dict[str, Any]]:
+        """列出内置和插件提供的 MCP 功能包。"""
+        return [package.manifest.to_dict() for package in self._mcp_packages.list()]
+
+    def mcp_package_plugin_errors(self) -> dict[str, str]:
+        """返回外部 MCP 功能包加载错误。"""
+        return self._mcp_packages.plugin_errors()
+
+    def connect_mcp_package(
+        self,
+        package_id: str,
+        instance_name: str,
+        config: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """通过统一功能包接口连接 MCP Server。"""
+        package = self._mcp_packages.get(package_id)
+        server_config = package.build_server_config(instance_name, config)
+        self._connect_mcp(server_config, package)
+        self._mcp_package_ids[instance_name] = package_id
+        return self._mcp_status(instance_name)
+
+    def _connect_mcp(
+        self,
+        config: McpServerConfig,
+        package: McpPackage | None = None,
+    ) -> dict[str, Any]:
+        """连接底层 Server 并应用可选功能包策略。"""
+        if config.name in self._mcp_clients:
+            raise ValueError(f"MCP Server 已连接: {config.name}")
+        client = StdioMcpClient(config)
+        try:
+            client.connect()
+            tools = build_mcp_tools(client, package)
+        except Exception:
+            client.close()
+            raise
+        self._mcp_clients[config.name] = client
+        self._mcp_tools[config.name] = tools
+        return self._mcp_status(config.name)
+
+    def list_mcp_servers(self) -> list[dict[str, Any]]:
+        """列出已注册 MCP Server 及其工具。"""
+        return [self._mcp_status(name) for name in sorted(self._mcp_clients)]
+
+    def list_connected_mcp_packages(self) -> list[dict[str, Any]]:
+        """列出通过功能包接口建立的连接。"""
+        return [self._mcp_status(name) for name in sorted(self._mcp_package_ids)]
+
+    def disconnect_mcp_package(self, instance_name: str) -> None:
+        """断开一个通过功能包接口建立的连接。"""
+        if instance_name not in self._mcp_package_ids:
+            raise ValueError(f"MCP 功能包实例未连接: {instance_name}")
+        self.disconnect_mcp_server(instance_name)
+
+    def disconnect_mcp_server(self, name: str) -> None:
+        """断开并移除一个 MCP Server。"""
+        client = self._mcp_clients.pop(name, None)
+        self._mcp_tools.pop(name, None)
+        self._mcp_package_ids.pop(name, None)
+        if client is None:
+            raise ValueError(f"MCP Server 未连接: {name}")
+        client.close()
+
+    def close(self) -> None:
+        """关闭所有会话与 MCP Server。"""
+        self._sessions.clear()
+        clients = list(self._mcp_clients.values())
+        self._mcp_clients.clear()
+        self._mcp_tools.clear()
+        self._mcp_package_ids.clear()
+        for client in clients:
+            client.close()
+
+    def _mcp_status(self, name: str) -> dict[str, Any]:
+        """构造带工具摘要的 MCP Server 状态。"""
+        client = self._mcp_clients[name]
+        tools = self._mcp_tools[name]
+        return {
+            **client.status(),
+            "packageId": self._mcp_package_ids.get(name),
+            "tools": [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "risk": tool.risk.value,
+                    "inputSchema": tool.params_schema,
+                }
+                for tool in tools.values()
+            ],
+        }

@@ -16,5 +16,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
 
 def _run(args: argparse.Namespace) -> int:
     """在标准输入输出上运行协议循环。"""
-    serve_ndjson(RuntimeApi(), sys.stdin, sys.stdout)
+    api = RuntimeApi()
+    try:
+        serve_ndjson(api, sys.stdin, sys.stdout)
+    finally:
+        api.close()
     return 0

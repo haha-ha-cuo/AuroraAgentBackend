@@ -6,8 +6,10 @@ dependencies = [
     "langchain-core>=0.3.0",
     "langchain-openai>=1.6.0",
     "langgraph>=0.2.0",
+    "mcp>=2.0.0,<3",
     "python-dotenv>=1.2.3",
     "pywin32>=311 ; sys_platform == 'win32'",
+    "pyyaml>=6.0,<7",
     "rich>=15.0.0",
 ]
 
@@ -21,6 +23,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["aurora*"]
+
+[tool.setuptools.package-data]
+"aurora.agent.mcp.packages" = ["*/package.yaml"]
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,70 @@
+schemaVersion: 1
+
+package:
+  id: qq
+  name: QQ
+  version: 1.0.0
+  description: 通过已部署的 QQ MCP Server 查询群信息和发送消息。
+
+server:
+  transport: stdio
+  args: []
+  timeout: 30
+
+configSchema:
+  type: object
+  required:
+    - command
+  properties:
+    command:
+      type: string
+      minLength: 1
+    args:
+      type: array
+      items:
+        type: string
+      default: []
+    cwd:
+      type: string
+    env:
+      type: object
+      additionalProperties:
+        type: string
+    timeout:
+      type: number
+      exclusiveMinimum: 0
+      default: 30
+  additionalProperties: false
+
+functions:
+  account.inspect:
+    description: 查询 QQ 登录状态和账号信息。
+    tools:
+      - get_*status
+      - get_login_info
+    risk: read
+  group.inspect:
+    description: 查询群、成员和消息信息。
+    tools:
+      - get_group_*
+      - list_group_*
+    risk: read
+  message.send:
+    description: 向好友或群发送消息。
+    tools:
+      - send_*
+    risk: execute
+  message.recall:
+    description: 撤回或删除消息。
+    tools:
+      - recall_*
+      - delete_*
+    risk: execute
+  group.moderate:
+    description: 执行禁言、踢人和群管理操作。
+    tools:
+      - ban_*
+      - kick_*
+      - mute_*
+      - moderate_*
+    risk: execute

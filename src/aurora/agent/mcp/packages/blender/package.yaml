@@ -1,0 +1,62 @@
+schemaVersion: 1
+
+package:
+  id: blender
+  name: Blender
+  version: 1.0.0
+  description: 控制 Blender 场景、对象和渲染流程。
+
+server:
+  transport: stdio
+  command: uvx
+  args:
+    - blender-mcp
+  timeout: 60
+
+configSchema:
+  type: object
+  properties:
+    command:
+      type: string
+      default: uvx
+    args:
+      type: array
+      items:
+        type: string
+      default:
+        - blender-mcp
+    cwd:
+      type: string
+    env:
+      type: object
+      additionalProperties:
+        type: string
+    timeout:
+      type: number
+      exclusiveMinimum: 0
+      default: 60
+  additionalProperties: false
+
+functions:
+  scene.inspect:
+    description: 查询 Blender 场景、对象和视口信息。
+    tools:
+      - get_scene_info
+      - get_object_info
+      - get_viewport_screenshot
+    risk: read
+  scene.modify:
+    description: 创建、删除或修改 Blender 场景对象。
+    tools:
+      - create_*
+      - delete_*
+      - modify_*
+      - remove_*
+      - set_*
+    risk: execute
+  code.execute:
+    description: 在 Blender 中执行代码。
+    tools:
+      - execute_*
+      - run_code*
+    risk: execute
