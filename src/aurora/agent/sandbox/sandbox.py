@@ -100,14 +100,12 @@ class Sandbox:
         )
 
     def run_python(self, code: str, timeout: float | None = None) -> ExecutionResult:
-        """把代码写入沙箱并运行。"""
-        self._ensure_writable()
-        script = self.root / "__aurora_main__.py"
-        script.write_text(code, encoding="utf-8")
+        """通过标准输入运行 Python 代码且不创建临时脚本。"""
         return self._executor.run(
-            self._executor.python_argv(script.name),
+            self._executor.python_argv("-"),
             cwd=self.root,
             timeout=timeout or self._default_timeout,
+            stdin=code,
         )
 
     def _ensure_writable(self) -> None:

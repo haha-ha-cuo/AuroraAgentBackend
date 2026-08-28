@@ -79,6 +79,7 @@ class LocalSandboxExecutor:
         cwd: Path,
         timeout: float,
         env: dict[str, str] | None = None,
+        stdin: str | None = None,
     ) -> ExecutionResult:
         """在选定的平台 runner 内执行命令。"""
         self.prepare(cwd)
@@ -88,6 +89,7 @@ class LocalSandboxExecutor:
             cwd=cwd,
             timeout=timeout,
             env=env,
+            stdin=stdin,
             max_output_bytes=self._max_output_bytes,
         )
         self._raise_runner_failure(result)

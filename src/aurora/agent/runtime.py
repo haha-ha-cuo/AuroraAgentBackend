@@ -124,23 +124,59 @@ class AgentSession:
         self._graph = graph
         self._run_ids: set[str] = set()
 
-    def start(self, goal: str) -> RunUpdate:
+    def start(
+        self,
+        goal: str,
+        on_progress: Callable[[str, str, Mapping[str, Any]], None] | None = None,
+    ) -> RunUpdate:
         """启动一个目标并返回完成或等待输入的快照。"""
         clean_goal = sanitize_text(goal).strip()
         if not clean_goal:
             raise ValueError("目标不能为空")
         run_id = uuid4().hex
         self._run_ids.add(run_id)
-        state = self._graph.invoke({"goal": clean_goal}, self._config(run_id))
-        return self._update(run_id, state)
+        if on_progress is None:
+            state = self._graph.invoke({"goal": clean_goal}, self._config(run_id))
+            return self._update(run_id, state)
+        on_progress(run_id, "run.started", {"goal": clean_goal})
+        return self._stream(run_id, {"goal": clean_goal}, on_progress)
 
-    def resume(self, run_id: str, response: Any, interrupt_id: str | None = None) -> RunUpdate:
+    def resume(
+        self,
+        run_id: str,
+        response: Any,
+        interrupt_id: str | None = None,
+        on_progress: Callable[[str, str, Mapping[str, Any]], None] | None = None,
+    ) -> RunUpdate:
         """用前端响应恢复一个等待中的运行。"""
         if run_id not in self._run_ids:
             raise ValueError(f"运行不存在或不属于当前会话: {run_id}")
         clean_response = sanitize_value(response)
         resume_value = {interrupt_id: clean_response} if interrupt_id else clean_response
-        state = self._graph.invoke(Command(resume=resume_value), self._config(run_id))
+        command = Command(resume=resume_value)
+        if on_progress is None:
+            state = self._graph.invoke(command, self._config(run_id))
+            return self._update(run_id, state)
+        on_progress(run_id, "run.resumed", {})
+        return self._stream(run_id, command, on_progress)
+
+    def _stream(
+        self,
+        run_id: str,
+        value: Any,
+        on_progress: Callable[[str, str, Mapping[str, Any]], None],
+    ) -> RunUpdate:
+        """流式执行图节点并返回最终快照。"""
+        config = self._config(run_id)
+        for chunk in self._graph.stream(value, config, stream_mode="updates"):
+            for node, update in chunk.items():
+                if node != "__interrupt__" and isinstance(update, Mapping):
+                    on_progress(run_id, str(node), update)
+        snapshot = self._graph.get_state(config)
+        state = dict(snapshot.values)
+        interruptions = [item for task in snapshot.tasks for item in task.interrupts]
+        if interruptions:
+            state["__interrupt__"] = interruptions
         return self._update(run_id, state)
 
     def run_until_complete(

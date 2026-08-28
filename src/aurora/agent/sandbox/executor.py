@@ -59,6 +59,7 @@ class SandboxExecutor(Protocol):
         cwd: Path,
         timeout: float,
         env: dict[str, str] | None = None,
+        stdin: str | None = None,
     ) -> ExecutionResult: ...
 
     def python_argv(self, script_name: str) -> list[str]: ...
@@ -95,9 +96,10 @@ class UnsafeSubprocessExecutor:
         cwd: Path,
         timeout: float,
         env: dict[str, str] | None = None,
+        stdin: str | None = None,
     ) -> ExecutionResult:
         """在宿主环境直接执行命令。"""
-        return run_process(argv, cwd=cwd, timeout=timeout, env=env)
+        return run_process(argv, cwd=cwd, timeout=timeout, env=env, stdin=stdin)
 
 
 def run_process(
@@ -106,6 +108,7 @@ def run_process(
     cwd: Path,
     timeout: float,
     env: dict[str, str] | None = None,
+    stdin: str | None = None,
     max_output_bytes: int = MAX_OUTPUT_BYTES,
     popen_kwargs: dict | None = None,
     on_started: Callable[[subprocess.Popen[bytes]], None] | None = None,
@@ -122,7 +125,7 @@ def run_process(
         argv,
         cwd=str(cwd),
         env=child_env,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         **kwargs,
@@ -136,6 +139,14 @@ def run_process(
         threading.Thread(target=_drain, args=(process.stdout, stdout, max_output_bytes, truncated, 0), daemon=True),
         threading.Thread(target=_drain, args=(process.stderr, stderr, max_output_bytes, truncated, 1), daemon=True),
     ]
+    if stdin is not None:
+        threads.append(
+            threading.Thread(
+                target=_write_stdin,
+                args=(process.stdin, stdin.encode("utf-8")),
+                daemon=True,
+            )
+        )
     for thread in threads:
         thread.start()
     timed_out = False
@@ -169,6 +180,19 @@ def _drain(pipe, output: bytearray, limit: int, flags: list[bool], index: int) -
                 output.extend(chunk[:remaining])
             if len(chunk) > max(remaining, 0):
                 flags[index] = True
+    finally:
+        pipe.close()
+
+
+def _write_stdin(pipe, content: bytes) -> None:
+    """写入进程标准输入并及时关闭管道。"""
+    if pipe is None:
+        return
+    try:
+        pipe.write(content)
+        pipe.flush()
+    except (BrokenPipeError, OSError):
+        pass
     finally:
         pipe.close()
 

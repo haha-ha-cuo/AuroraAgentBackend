@@ -118,6 +118,14 @@ uv run aurora runtime
 
 运行时通过 stdin/stdout 交换逐行 JSON，不监听本地端口。前端先调用 `workspace.validate` 校验系统目录选择器返回的路径，再通过 `session.create` 创建绑定到该工作区的独立 Agent 会话。
 
+浏览器开发模式可启用 WebSocket 传输：
+
+```bash
+uv run aurora runtime --port 8765
+```
+
+WebSocket 地址为 `ws://127.0.0.1:8765/ws`。同级 `frontend` 项目的 `pnpm dev` 会自动执行这条命令，无需手动启动。
+
 ```json
 {"id":"1","method":"workspace.validate","params":{"path":"/path/to/project"}}
 {"id":"2","method":"session.create","params":{"workspacePath":"/path/to/project","sandboxMode":"workspace-write","approvalMode":"interactive"}}
@@ -125,6 +133,8 @@ uv run aurora runtime
 ```
 
 交互审批、目标澄清和结果评价分别通过 `approval.required`、`clarification.required` 和 `evaluation.required` 事件通知前端。前端使用事件中的 `sessionId`、`runId` 和 `interruptId` 调用 `run.resume`，完成后运行时广播 `run.completed`。
+
+运行过程中会实时推送 `run.started`、`plan.created`、`task.started`、`task.completed` / `task.failed`，最终回答通过 `message.started`、`message.delta`、`message.completed` 增量发送。stdio 与 WebSocket 使用完全相同的事件结构。
 
 桌面运行时可以先读取功能包目录，再在创建 Agent 会话前连接 Blender、QQ 等能力：
 

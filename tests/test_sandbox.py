@@ -55,6 +55,15 @@ def test_run_python(tmp_path):
     result = sandbox.run_python("print(1 + 1)")
     assert result.exit_code == 0
     assert "2" in result.stdout
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_run_python_works_without_workspace_write(tmp_path):
+    sandbox = Sandbox(root=tmp_path, executor=UnsafeSubprocessExecutor(), mode="read-only")
+    result = sandbox.run_python("print('probe')")
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "probe"
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_run_timeout(tmp_path):

@@ -135,6 +135,92 @@ def test_ndjson_server_returns_protocol_frame():
     assert frame["result"]["protocolVersion"] == "1"
 
 
+def test_ndjson_server_accepts_desktop_wire_envelope():
+    source = io.StringIO(
+        '{"protocol_version":1,"request_id":"req_1","method":"runtime.initialize","params":{}}\n'
+    )
+    target = io.StringIO()
+    serve_ndjson(RuntimeApi(make_runtime(task("sandbox_list_files", {}))), source, target)
+    frame = json.loads(target.getvalue())
+    assert frame["request_id"] == "req_1"
+    assert frame["ok"] is True
+    assert "workspace.validate" in frame["result"]["capabilities"]
+
+
+def test_wire_run_emits_progress_and_message_deltas(tmp_path):
+    api = RuntimeApi(make_runtime(task("sandbox_list_files", {})))
+    created = api.handle(
+        {
+            "id": "create",
+            "method": "session.create",
+            "params": {"workspacePath": str(tmp_path)},
+        }
+    )[0]["result"]
+    frames = []
+    api.process_wire(
+        {
+            "protocol_version": 1,
+            "request_id": "run",
+            "method": "run.start",
+            "params": {"sessionId": created["sessionId"], "goal": "列出文件"},
+        },
+        frames.append,
+    )
+
+    event_types = [frame["type"] for frame in frames if "type" in frame]
+    assert event_types[:4] == ["run.started", "plan.created", "task.started", "task.completed"]
+    assert "message.started" in event_types
+    assert "message.delta" in event_types
+    assert "message.completed" in event_types
+    assert event_types[-1] == "run.completed"
+    response = next(frame for frame in frames if frame.get("request_id") == "run")
+    assert response["ok"] is True
+    assert response["result"]["status"] == "completed"
+
+
+def test_wire_stream_resumes_after_approval(tmp_path):
+    api = RuntimeApi(make_runtime(task("write_file", {"path": "stream.txt", "content": "ok"})))
+    created = api.handle(
+        {
+            "id": "create",
+            "method": "session.create",
+            "params": {"workspacePath": str(tmp_path)},
+        }
+    )[0]["result"]
+    started = []
+    api.process_wire(
+        {
+            "protocol_version": 1,
+            "request_id": "start",
+            "method": "run.start",
+            "params": {"sessionId": created["sessionId"], "goal": "写文件"},
+        },
+        started.append,
+    )
+    waiting = next(frame["result"] for frame in started if frame.get("request_id") == "start")
+    approval = next(frame["payload"] for frame in started if frame.get("type") == "approval.required")
+    assert waiting["status"] == "waiting"
+
+    resumed = []
+    api.process_wire(
+        {
+            "protocol_version": 1,
+            "request_id": "resume",
+            "method": "run.resume",
+            "params": {
+                "sessionId": created["sessionId"],
+                "runId": waiting["runId"],
+                "interruptId": approval["interruptId"],
+                "response": {"approved": True},
+            },
+        },
+        resumed.append,
+    )
+    assert any(frame.get("type") == "run.resumed" for frame in resumed)
+    assert any(frame.get("type") == "message.delta" for frame in resumed)
+    assert (tmp_path / "stream.txt").read_text(encoding="utf-8") == "ok"
+
+
 def test_runtime_command_is_registered():
     args = build_parser().parse_args(["runtime"])
     assert args.command == "runtime"

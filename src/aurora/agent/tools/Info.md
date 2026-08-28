@@ -55,7 +55,7 @@ tools = get_available_tools()
 
 - `write_file(path, content)`：写入/覆盖沙箱内文本文件（write）
 - `run_command(command, timeout)`：沙箱内运行 shell 命令（execute）
-- `run_python(code, timeout)`：沙箱内运行 Python 代码（execute）
+- `run_python(code, timeout)`：通过 stdin 临时运行 Python 代码，不创建脚本文件（execute）
 - `sandbox_list_files(path=".")`：列出沙箱目录结构（read）
 - `sandbox_read_file(path)`：读取沙箱内文本文件（read）
 
