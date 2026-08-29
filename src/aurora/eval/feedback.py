@@ -16,7 +16,9 @@ class JsonlFeedbackStore:
 
     def __call__(self, state: DelegationState) -> None:
         """将一次已评分的图状态追加到评估集。"""
-        evaluation = state["evaluation"]
+        evaluation = state.get("evaluation")
+        if evaluation is None:
+            raise ValueError("评估记录缺少 evaluation")
         record = {
             "goal": state["goal"],
             "tasks": [

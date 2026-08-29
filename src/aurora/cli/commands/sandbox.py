@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import argparse
 
+from langgraph.checkpoint.memory import InMemorySaver
 from rich.console import Console
 from rich.tree import Tree
-from langgraph.checkpoint.memory import InMemorySaver
 
-from aurora.agent.core import LLMClarifier, LLMPlanner, build_delegation_graph, invoke_with_responder
+from aurora.agent.core import (
+    LLMClarifier,
+    LLMPlanner,
+    build_delegation_graph,
+    invoke_with_responder,
+)
 from aurora.agent.model_access import build_llm
 from aurora.agent.safety import build_gate
 from aurora.agent.sandbox import create_sandbox, set_sandbox
@@ -21,7 +26,9 @@ DEFAULT_GOAL = "在沙箱里写一个 Python 脚本，输出 1 到 10 的平方�
 def register(subparsers: argparse._SubParsersAction) -> None:
     parser = subparsers.add_parser("sandbox", help="在沙箱中让 Agent 写代码并运行")
     parser.add_argument("goal", nargs="?", default=DEFAULT_GOAL, help="任务目标")
-    parser.add_argument("--sandbox-dir", default=None, help="沙箱工作目录（默认 ~/.aurora/sandbox）")
+    parser.add_argument(
+        "--sandbox-dir", default=None, help="沙箱工作目录（默认 ~/.aurora/sandbox）"
+    )
     parser.add_argument(
         "--approve",
         choices=["interactive", "always", "never"],
@@ -63,7 +70,9 @@ def _run(args: argparse.Namespace) -> int:
     console.print(f"[bold]目标:[/bold] {args.goal}")
     console.print()
 
-    state = invoke_with_responder(graph, args.goal, lambda request: respond_to_interrupt(console, request))
+    state = invoke_with_responder(
+        graph, args.goal, lambda request: respond_to_interrupt(console, request)
+    )
 
     tree = Tree("委派树")
     for task in state["tasks"]:

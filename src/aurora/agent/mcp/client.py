@@ -180,7 +180,9 @@ def _render_tool_result(result: types.CallToolResult) -> str:
         elif isinstance(block, types.AudioContent):
             parts.append(f"[音频 {block.mime_type}，{len(block.data)} 字符]")
         else:
-            parts.append(json.dumps(block.model_dump(by_alias=True), ensure_ascii=False, default=str))
+            parts.append(
+                json.dumps(block.model_dump(by_alias=True), ensure_ascii=False, default=str)
+            )
     if result.structured_content is not None and not parts:
         parts.append(json.dumps(result.structured_content, ensure_ascii=False, default=str))
     return "\n".join(part for part in parts if part)

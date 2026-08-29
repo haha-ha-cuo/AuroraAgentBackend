@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from typing import Any, Literal, cast
 
-from langgraph.graph import END, START, StateGraph
 from langgraph.errors import GraphInterrupt
+from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send, interrupt
 
 from ...logging import get_logger
 from ..safety.gate import ConfirmationGate, DenyApprover
 from ..tools.base import Tool
 from .planner import Clarifier, NoClarifier, Planner
-from .state import DelegationState, Evaluation, Result
+from .state import DelegationState, Evaluation, Result, TraceEvent
 
 log = get_logger(__name__)
 
@@ -89,7 +90,9 @@ def build_delegation_graph(
 
     def ask_user_node(state: DelegationState) -> dict:
         """暂停图执行并接收用户补充信息。"""
-        question = state["clarification_question"]
+        question = state.get("clarification_question", "")
+        if not question:
+            raise ValueError("澄清问题不能为空")
         answer = interrupt(
             {
                 "kind": "clarification",
@@ -119,7 +122,9 @@ def build_delegation_graph(
 
     def execute_node(state: DelegationState) -> dict:
         """通过确认门执行一个叶子任务。"""
-        task = state["current_task"]
+        task = state.get("current_task")
+        if task is None:
+            raise ValueError("当前任务不能为空")
         try:
             tool = tools[task["tool"]]
             output = gate.invoke(tool, task["args"])
@@ -135,9 +140,7 @@ def build_delegation_graph(
         result: Result = {"task_id": task["id"], "ok": ok, "output": output}
         return {
             "results": [result],
-            "trace": [
-                {"node": "execute", "detail": f"{task['id']}:{'ok' if ok else 'failed'}"}
-            ],
+            "trace": [{"node": "execute", "detail": f"{task['id']}:{'ok' if ok else 'failed'}"}],
         }
 
     def summarize_node(state: DelegationState) -> dict:
@@ -180,9 +183,13 @@ def build_delegation_graph(
         if score not in range(1, 6):
             raise ValueError("评分必须是 1 到 5")
         evaluation: Evaluation = {"score": score, "comment": comment}
-        event = {"node": "feedback", "detail": f"用户评分 {score}"}
+        event: TraceEvent = {"node": "feedback", "detail": f"用户评分 {score}"}
         if feedback_sink is not None:
-            feedback_sink({**state, "evaluation": evaluation, "trace": [*state.get("trace", []), event]})
+            updated = cast(
+                DelegationState,
+                {**state, "evaluation": evaluation, "trace": [*state.get("trace", []), event]},
+            )
+            feedback_sink(updated)
         return {
             "evaluation": evaluation,
             "trace": [event],

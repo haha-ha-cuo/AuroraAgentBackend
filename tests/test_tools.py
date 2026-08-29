@@ -10,7 +10,13 @@ from aurora.agent.tools.base import Tool
 
 def test_sandbox_tools_registered():
     tools = get_available_tools()
-    for name in ("write_file", "run_command", "run_python", "sandbox_list_files", "sandbox_read_file"):
+    for name in (
+        "write_file",
+        "run_command",
+        "run_python",
+        "sandbox_list_files",
+        "sandbox_read_file",
+    ):
         assert name in tools
 
 

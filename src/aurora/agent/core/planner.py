@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
-from .state import Effort, Task
+from .state import Clarification, Effort, Task
 
 
 class Planner(Protocol):
@@ -29,8 +30,8 @@ class Clarifier(Protocol):
     def assess(
         self,
         goal: str,
-        tasks: list[Task],
-        clarifications: list[dict[str, str]],
+        tasks: Sequence[Task],
+        clarifications: Sequence[Clarification],
     ) -> ClarificationDecision: ...
 
 
@@ -40,8 +41,8 @@ class NoClarifier:
     def assess(
         self,
         goal: str,
-        tasks: list[Task],
-        clarifications: list[dict[str, str]],
+        tasks: Sequence[Task],
+        clarifications: Sequence[Clarification],
     ) -> ClarificationDecision:
         return ClarificationDecision(needed=False)
 

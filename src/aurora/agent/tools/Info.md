@@ -19,9 +19,9 @@ Agent 可用的工具与风险分级表。
 ```python
 from aurora.agent.tools import RiskLevel, tool
 
+
 @tool(name="read_file", description="读取 UTF-8 文本文件", risk=RiskLevel.READ)
-def read_file(path: str) -> str:
-    ...
+def read_file(path: str) -> str: ...
 ```
 
 执行阶段用 `get_available_tools()` 一次性取回全部工具（`{name: Tool}`）：

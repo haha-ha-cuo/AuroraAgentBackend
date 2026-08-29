@@ -15,7 +15,7 @@ from langgraph.types import Command
 from aurora.text import sanitize_text, sanitize_value
 
 from .core import LLMClarifier, LLMPlanner, build_delegation_graph
-from .model_access import build_llm
+from .core.state import DelegationState
 from .mcp import (
     McpPackage,
     McpPackageRegistry,
@@ -23,6 +23,7 @@ from .mcp import (
     StdioMcpClient,
     build_mcp_tools,
 )
+from .model_access import build_llm
 from .safety import build_gate
 from .sandbox import Sandbox, SandboxMode, create_sandbox
 from .tools import Tool, build_sandbox_tools, get_available_tools
@@ -198,8 +199,7 @@ class AgentSession:
     def _update(self, run_id: str, state: Mapping[str, Any]) -> RunUpdate:
         """把图状态转换为稳定的运行时快照。"""
         interruptions = tuple(
-            RuntimeInterrupt(item.id, item.value)
-            for item in state.get("__interrupt__", [])
+            RuntimeInterrupt(item.id, item.value) for item in state.get("__interrupt__", [])
         )
         public_state = {
             key: value
@@ -243,7 +243,7 @@ class AgentRuntime:
         *,
         sandbox_mode: SandboxMode = "workspace-write",
         approval_mode: str = "interactive",
-        feedback_sink: Callable[[Mapping[str, Any]], None] | None = None,
+        feedback_sink: Callable[[DelegationState], None] | None = None,
     ) -> AgentSession:
         """为指定工作区创建独立 Agent 会话。"""
         workspace = validate_workspace(workspace_path)

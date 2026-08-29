@@ -1,7 +1,10 @@
 [project]
 name = "auroraapp"
 version = "0.1.0"
-requires-python = ">=3.13"
+description = "Aurora Agent runtime backend"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13,<3.15"
 dependencies = [
     "langchain-core>=0.3.0",
     "langchain-openai>=1.6.0",
@@ -11,7 +14,7 @@ dependencies = [
     "pywin32>=311 ; sys_platform == 'win32'",
     "pyyaml>=6.0,<7",
     "rich>=15.0.0",
-    "websockets>=15.0",
+    "websockets>=16,<17",
 ]
 
 [project.scripts]
@@ -30,5 +33,30 @@ include = ["aurora*"]
 
 [dependency-groups]
 dev = [
+    "pip-audit>=2.8,<3",
+    "pre-commit>=4,<5",
+    "pyright>=1.1.400",
     "pytest>=9.1.1",
+    "pytest-cov>=6,<8",
+    "ruff>=0.8",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+addopts = "--cov=aurora --cov-report=term-missing --cov-fail-under=60"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+skip_covered = true
+show_missing = true

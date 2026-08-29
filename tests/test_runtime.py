@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import json
+import socket
+from contextlib import suppress
+
+from websockets.asyncio.client import connect
 
 from aurora.agent.core import Effort, NoClarifier
 from aurora.agent.runtime import AgentRuntime, validate_workspace
 from aurora.agent.sandbox import Sandbox, UnsafeSubprocessExecutor
-from aurora.agent.transport import RuntimeApi, serve_ndjson
+from aurora.agent.transport import RuntimeApi, serve_ndjson, serve_websocket
 from aurora.cli.main import build_parser
 from aurora.text import sanitize_text
 
@@ -147,6 +152,40 @@ def test_ndjson_server_accepts_desktop_wire_envelope():
     assert "workspace.validate" in frame["result"]["capabilities"]
 
 
+def test_websocket_server_returns_protocol_frame():
+    async def scenario():
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+
+        api = RuntimeApi(make_runtime(task("sandbox_list_files", {})))
+        server = asyncio.create_task(serve_websocket(api, port=port))
+        try:
+            for _ in range(50):
+                try:
+                    websocket = await connect(f"ws://127.0.0.1:{port}/ws")
+                    break
+                except OSError:
+                    await asyncio.sleep(0.01)
+            else:
+                raise AssertionError("WebSocket 服务未按时启动")
+
+            try:
+                await websocket.send('{"id":"1","method":"runtime.initialize"}')
+                frame = json.loads(await websocket.recv())
+                assert frame["id"] == "1"
+                assert frame["result"]["protocolVersion"] == "1"
+            finally:
+                await websocket.close()
+        finally:
+            server.cancel()
+            with suppress(asyncio.CancelledError):
+                await server
+            api.close()
+
+    asyncio.run(scenario())
+
+
 def test_wire_run_emits_progress_and_message_deltas(tmp_path):
     api = RuntimeApi(make_runtime(task("sandbox_list_files", {})))
     created = api.handle(
@@ -198,7 +237,9 @@ def test_wire_stream_resumes_after_approval(tmp_path):
         started.append,
     )
     waiting = next(frame["result"] for frame in started if frame.get("request_id") == "start")
-    approval = next(frame["payload"] for frame in started if frame.get("type") == "approval.required")
+    approval = next(
+        frame["payload"] for frame in started if frame.get("type") == "approval.required"
+    )
     assert waiting["status"] == "waiting"
 
     resumed = []

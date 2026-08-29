@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import Literal
 
 from langchain_core.prompts import ChatPromptTemplate
@@ -12,7 +13,7 @@ from aurora.text import sanitize_text
 from ...logging import get_logger
 from ..tools.base import Tool, format_tools_for_llm
 from .planner import ClarificationDecision
-from .state import Effort, Task
+from .state import Clarification, Effort, Task
 
 log = get_logger(__name__)
 
@@ -57,7 +58,8 @@ PLANNER_SYSTEM = """
 
 必须只输出一个 JSON 对象，不要输出任何解释文字。JSON 结构如下：
 
-{{"tasks": [{{"id": "字符串", "description": "任务描述", "effort": "low", "tool": "工具名", "args": {{"参数名": "参数值"}}}}]}}
+{{"tasks": [{{"id": "字符串", "description": "任务描述", "effort": "low",
+"tool": "工具名", "args": {{"参数名": "参数值"}}}}]}}
 
 字段要求：
 - id：字符串，任务唯一标识
@@ -67,7 +69,8 @@ PLANNER_SYSTEM = """
 - args：传给工具的参数对象，字段名与类型必须和上面「参数」标注一致
 
 示例：
-{{"tasks": [{{"id": "t1", "description": "列出项目文件结构", "effort": "low", "tool": "list_files", "args": {{"path": "."}}}}]}}
+{{"tasks": [{{"id": "t1", "description": "列出项目文件结构", "effort": "low",
+"tool": "list_files", "args": {{"path": "."}}}}]}}
 
 最多 8 个任务，任务之间尽量独立以便并行。
 """
@@ -88,7 +91,7 @@ CLARIFIER_SYSTEM = """
 class LLMPlanner:
     """基于 LLM 的规划器：用结构化输出把目标拆成任务列表。"""
 
-    def __init__(self, llm, tools: dict[str, Tool]) -> None:
+    def __init__(self, llm, tools: Mapping[str, Tool]) -> None:
         tool_desc = format_tools_for_llm(tools)
         self._tool_names = list(tools.keys())
         # DeepSeek 不支持 json_schema 严格模式、思考模式又不支持 tool_choice，
@@ -168,8 +171,8 @@ class LLMClarifier:
     def assess(
         self,
         goal: str,
-        tasks: list[Task],
-        clarifications: list[dict[str, str]],
+        tasks: Sequence[Task],
+        clarifications: Sequence[Clarification],
     ) -> ClarificationDecision:
         goal = sanitize_text(goal)
         result = (self._prompt | self._llm).invoke(

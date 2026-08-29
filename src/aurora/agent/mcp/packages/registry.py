@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .base import McpPackage
 from .loader import discover_package_directories, load_package_directory

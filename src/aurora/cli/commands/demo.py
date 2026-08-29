@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import argparse
 
+from langgraph.checkpoint.memory import InMemorySaver
 from rich.console import Console
 from rich.tree import Tree
-from langgraph.checkpoint.memory import InMemorySaver
 
-from aurora.agent.core import LLMClarifier, LLMPlanner, build_delegation_graph, invoke_with_responder
+from aurora.agent.core import (
+    LLMClarifier,
+    LLMPlanner,
+    build_delegation_graph,
+    invoke_with_responder,
+)
 from aurora.agent.model_access import build_llm
 from aurora.agent.tools import get_available_tools
 from aurora.cli.workflow import respond_to_interrupt
@@ -38,7 +43,9 @@ def _run(args: argparse.Namespace) -> int:
     console.print(f"[bold]目标:[/bold] {args.goal}")
     console.print()
 
-    state = invoke_with_responder(graph, args.goal, lambda request: respond_to_interrupt(console, request))
+    state = invoke_with_responder(
+        graph, args.goal, lambda request: respond_to_interrupt(console, request)
+    )
 
     tree = Tree("委派树")
     for task in state["tasks"]:

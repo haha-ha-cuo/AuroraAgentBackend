@@ -82,8 +82,18 @@ def build_sandbox_tools(sandbox: Sandbox) -> dict[str, Tool]:
     definitions = (
         ("list_files", "递归列出当前工作区内的文件结构", bound_list_files, RiskLevel.READ),
         ("read_file", "读取当前工作区内的 UTF-8 文本文件", bound_read_file, RiskLevel.READ),
-        ("write_file", "在沙箱目录内写入或覆盖 UTF-8 文本文件（相对沙箱根路径）", bound_write_file, RiskLevel.WRITE),
-        ("run_command", "在沙箱目录内运行一条 shell 命令，返回退出码与标准输出", bound_run_command, RiskLevel.EXECUTE),
+        (
+            "write_file",
+            "在沙箱目录内写入或覆盖 UTF-8 文本文件（相对沙箱根路径）",
+            bound_write_file,
+            RiskLevel.WRITE,
+        ),
+        (
+            "run_command",
+            "在沙箱目录内运行一条 shell 命令，返回退出码与标准输出",
+            bound_run_command,
+            RiskLevel.EXECUTE,
+        ),
         (
             "run_python",
             "通过标准输入临时运行 Python 代码，不创建脚本文件，返回退出码与输出",
@@ -94,6 +104,5 @@ def build_sandbox_tools(sandbox: Sandbox) -> dict[str, Tool]:
         ("sandbox_read_file", "读取沙箱目录内的 UTF-8 文本文件", bound_read_file, RiskLevel.READ),
     )
     return {
-        name: Tool(name, description, func, risk)
-        for name, description, func, risk in definitions
+        name: Tool(name, description, func, risk) for name, description, func, risk in definitions
     }

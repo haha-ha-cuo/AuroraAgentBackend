@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from websockets.asyncio.server import ServerConnection, serve
 
-from .api import RuntimeApi
 from aurora.text import sanitize_value
+
+from .api import RuntimeApi
 
 logger = logging.getLogger(__name__)
 
@@ -27,26 +28,44 @@ async def serve_websocket(api: RuntimeApi, host: str = "127.0.0.1", port: int = 
                 try:
                     request = json.loads(raw)
                     if not isinstance(request, Mapping):
-                        await websocket.send(json.dumps(
-                            {"error": {"code": "invalid_request", "message": "请求必须是 JSON 对象"}},
-                            ensure_ascii=False,
-                        ))
+                        await websocket.send(
+                            json.dumps(
+                                {
+                                    "error": {
+                                        "code": "invalid_request",
+                                        "message": "请求必须是 JSON 对象",
+                                    }
+                                },
+                                ensure_ascii=False,
+                            )
+                        )
                         continue
                 except json.JSONDecodeError as exc:
-                    await websocket.send(json.dumps(
-                        {"error": {"code": "invalid_json", "message": str(exc)}},
-                        ensure_ascii=False,
-                    ))
+                    await websocket.send(
+                        json.dumps(
+                            {"error": {"code": "invalid_json", "message": str(exc)}},
+                            ensure_ascii=False,
+                        )
+                    )
                     continue
 
                 if "request_id" in request or "protocol_version" in request:
-                    async def emit(frame: dict[str, Any]) -> None:
-                        await websocket.send(json.dumps(sanitize_value(frame), ensure_ascii=False, separators=(",", ":")))
-                    api.process_wire(request, lambda frame: asyncio.ensure_future(emit(frame)))
+                    frames: list[dict[str, Any]] = []
+                    api.process_wire(request, frames.append)
+                    for frame in frames:
+                        await websocket.send(
+                            json.dumps(
+                                sanitize_value(frame), ensure_ascii=False, separators=(",", ":")
+                            )
+                        )
                 else:
                     frames = api.handle(request)
                     for frame in frames:
-                        await websocket.send(json.dumps(sanitize_value(frame), ensure_ascii=False, separators=(",", ":")))
+                        await websocket.send(
+                            json.dumps(
+                                sanitize_value(frame), ensure_ascii=False, separators=(",", ":")
+                            )
+                        )
         except Exception:
             logger.debug("WebSocket 客户端断开", exc_info=True)
         finally:

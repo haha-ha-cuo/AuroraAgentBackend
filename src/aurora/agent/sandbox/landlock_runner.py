@@ -76,7 +76,7 @@ def apply_landlock(workspace: Path, mode: str) -> None:
 
 def _add_path_rule(ruleset_fd: int, path: Path, access: int) -> None:
     """向 ruleset 添加路径授权。"""
-    flags = os.O_PATH | os.O_CLOEXEC
+    flags = getattr(os, "O_PATH", 0) | os.O_CLOEXEC
     parent_fd = os.open(path, flags)
     try:
         allowed = access if path.is_dir() else access & FILE_ACCESS

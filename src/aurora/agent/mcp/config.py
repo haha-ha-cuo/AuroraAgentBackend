@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 _SERVER_NAME = re.compile(r"^[A-Za-z0-9_-]+$")
 
@@ -36,7 +37,7 @@ class McpServerConfig:
             object.__setattr__(self, "cwd", str(path))
 
     @classmethod
-    def from_mapping(cls, value: Mapping[str, Any]) -> "McpServerConfig":
+    def from_mapping(cls, value: Mapping[str, Any]) -> McpServerConfig:
         """从前端协议对象创建配置。"""
         args = value.get("args", [])
         env = value.get("env", {})

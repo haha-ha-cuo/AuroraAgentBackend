@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Callable, Mapping
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
@@ -94,7 +94,9 @@ class ConversationSession:
         """生成目标计划但不执行工具。"""
         if not goal:
             return SessionReply(text="用法：/plan <目标>")
-        return SessionReply(text=f"已生成 {len(tasks := self._planner.plan(goal))} 个任务。", tasks=tasks)
+        return SessionReply(
+            text=f"已生成 {len(tasks := self._planner.plan(goal))} 个任务。", tasks=tasks
+        )
 
     def _run(self, goal: str) -> SessionReply:
         """规划并执行目标。"""

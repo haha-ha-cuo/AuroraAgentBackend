@@ -3,17 +3,17 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from typing import Any, TextIO
 from uuid import uuid4
 
+from aurora.protocol import PROTOCOL_VERSION
 from aurora.text import sanitize_text, sanitize_value
 
 from ..mcp import McpClientError, McpServerConfig
 from ..runtime import AgentRuntime, RunUpdate, validate_workspace
-
-PROTOCOL_VERSION = "1"
+from ..sandbox import SandboxMode
 
 
 class MethodNotFoundError(ValueError):
@@ -49,7 +49,7 @@ class RuntimeApi:
     def handle_wire(self, request: Mapping[str, Any]) -> list[dict[str, Any]]:
         """处理桌面端协议信封并返回响应与事件。"""
         request_id = request.get("request_id")
-        if request.get("protocol_version") != int(PROTOCOL_VERSION):
+        if request.get("protocol_version") != PROTOCOL_VERSION:
             return [_wire_error(request_id, "invalid_request", "仅支持 protocol_version=1")]
         frames = self.handle(
             {
@@ -73,7 +73,7 @@ class RuntimeApi:
             else:
                 result.append(
                     {
-                        "protocol_version": int(PROTOCOL_VERSION),
+                        "protocol_version": PROTOCOL_VERSION,
                         "request_id": request_id,
                         "ok": True,
                         "result": frame.get("result", {}),
@@ -89,7 +89,7 @@ class RuntimeApi:
         """处理桌面端请求并实时发送协议帧。"""
         request = sanitize_value(request)
         request_id = request.get("request_id")
-        if request.get("protocol_version") != int(PROTOCOL_VERSION):
+        if request.get("protocol_version") != PROTOCOL_VERSION:
             emit(_wire_error(request_id, "invalid_request", "仅支持 protocol_version=1"))
             return
         try:
@@ -104,7 +104,7 @@ class RuntimeApi:
             result, events = self._dispatch_stream(method, params, emit)
             emit(
                 {
-                    "protocol_version": int(PROTOCOL_VERSION),
+                    "protocol_version": PROTOCOL_VERSION,
                     "request_id": request_id,
                     "ok": True,
                     "result": result,
@@ -216,7 +216,7 @@ class RuntimeApi:
         """执行一个协议方法。"""
         if method == "runtime.initialize":
             return {
-                "protocolVersion": PROTOCOL_VERSION,
+                "protocolVersion": str(PROTOCOL_VERSION),
                 "capabilities": [
                     "workspace.validate",
                     "session.create",
@@ -265,15 +265,16 @@ class RuntimeApi:
             self._runtime.disconnect_mcp_package(instance_name)
             return {"instanceName": instance_name, "disconnected": True}, []
         if method == "session.create":
+            sandbox_mode = _sandbox_mode(params.get("sandboxMode", "workspace-write"))
             session = self._runtime.create_session(
                 _required_string(params, "workspacePath"),
-                sandbox_mode=str(params.get("sandboxMode", "workspace-write")),
+                sandbox_mode=sandbox_mode,
                 approval_mode=str(params.get("approvalMode", "interactive")),
             )
             return {
                 "sessionId": session.id,
                 "workspace": session.workspace.to_dict(),
-                "sandboxMode": str(params.get("sandboxMode", "workspace-write")),
+                "sandboxMode": sandbox_mode,
                 "approvalMode": str(params.get("approvalMode", "interactive")),
             }, []
         if method == "run.start":
@@ -337,7 +338,9 @@ def _frames_for_update(update: RunUpdate) -> tuple[dict[str, Any], list[dict[str
             "runId": update.run_id,
             **pending.to_dict(),
         }
-        events.append({"event": names.get(str(pending.value.get("kind")), "run.input_required"), "data": data})
+        events.append(
+            {"event": names.get(str(pending.value.get("kind")), "run.input_required"), "data": data}
+        )
     return result, events
 
 
@@ -374,6 +377,13 @@ def _optional_string(values: Mapping[str, Any], name: str) -> str | None:
     return value.strip()
 
 
+def _sandbox_mode(value: Any) -> SandboxMode:
+    """校验并返回沙箱模式。"""
+    if value not in {"read-only", "workspace-write", "danger-full-access"}:
+        raise ValueError("sandboxMode 无效")
+    return value
+
+
 def _error(request_id: Any, code: str, message: str) -> dict[str, Any]:
     """构造稳定的协议错误帧。"""
     return {"id": request_id, "error": {"code": code, "message": message}}
@@ -382,7 +392,7 @@ def _error(request_id: Any, code: str, message: str) -> dict[str, Any]:
 def _wire_error(request_id: Any, code: str, message: str) -> dict[str, Any]:
     """构造桌面端协议错误信封。"""
     return {
-        "protocol_version": int(PROTOCOL_VERSION),
+        "protocol_version": PROTOCOL_VERSION,
         "request_id": request_id,
         "ok": False,
         "error": {"code": code, "message": message},
@@ -393,7 +403,7 @@ def _wire_event(name: str, data: Any) -> dict[str, Any]:
     """构造桌面端协议事件信封。"""
     payload = dict(data) if isinstance(data, Mapping) else {"value": data}
     return {
-        "protocol_version": int(PROTOCOL_VERSION),
+        "protocol_version": PROTOCOL_VERSION,
         "event_id": f"evt_{uuid4().hex}",
         "type": name,
         "occurred_at": datetime.now(UTC).isoformat(),

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Mapping, Protocol
+from collections.abc import Mapping
+from typing import Any, Protocol
 
-from rich.console import Console
 from langgraph.types import interrupt
+from rich.console import Console
 
 from ...logging import get_logger
 from ..tools.base import RiskLevel, Tool
@@ -86,7 +87,9 @@ class ConfirmationGate:
 
     def invoke(self, tool: Tool, args: Mapping[str, Any]) -> str:
         if not self._approver.approve(tool, args):
-            raise ToolDeniedError(f"工具 {tool.name}（风险 {tool.risk.value}）需要用户确认，已拒绝执行")
+            raise ToolDeniedError(
+                f"工具 {tool.name}（风险 {tool.risk.value}）需要用户确认，已拒绝执行"
+            )
         return tool.run(**dict(args))
 
 

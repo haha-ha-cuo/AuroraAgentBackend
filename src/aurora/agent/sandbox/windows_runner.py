@@ -31,7 +31,10 @@ def workspace_sid(path: Path):
     """为规范工作区派生稳定 SID。"""
     win32security, *_ = _modules()
     canonical = os.path.normcase(str(path.resolve())).encode("utf-8")
-    parts = [int.from_bytes(hashlib.sha256(canonical).digest()[index:index + 4], "little") for index in range(0, 16, 4)]
+    parts = [
+        int.from_bytes(hashlib.sha256(canonical).digest()[index : index + 4], "little")
+        for index in range(0, 16, 4)
+    ]
     return win32security.ConvertStringSidToSid("S-1-5-21-" + "-".join(str(part) for part in parts))
 
 
@@ -71,7 +74,11 @@ def run_restricted(command: list[str], workspace: Path, temp_dir: Path, mode: st
     if mode == "workspace-write":
         ensure_write_grant(workspace, workspace_write_sid)
         ensure_write_grant(temp_dir, temp_write_sid)
-    access = win32security.TOKEN_DUPLICATE | win32security.TOKEN_QUERY | win32security.TOKEN_ASSIGN_PRIMARY
+    access = (
+        win32security.TOKEN_DUPLICATE
+        | win32security.TOKEN_QUERY
+        | win32security.TOKEN_ASSIGN_PRIMARY
+    )
     source_token = win32security.OpenProcessToken(win32api.GetCurrentProcess(), access)
     groups = win32security.GetTokenInformation(source_token, win32security.TokenGroups)
     logon_sid = next((sid for sid, attributes in groups if attributes & SE_GROUP_LOGON_ID), None)
@@ -94,7 +101,9 @@ def run_restricted(command: list[str], workspace: Path, temp_dir: Path, mode: st
     startup.hStdOutput = win32api.GetStdHandle(win32con.STD_OUTPUT_HANDLE)
     startup.hStdError = win32api.GetStdHandle(win32con.STD_ERROR_HANDLE)
     for handle in (startup.hStdInput, startup.hStdOutput, startup.hStdError):
-        win32api.SetHandleInformation(handle, win32con.HANDLE_FLAG_INHERIT, win32con.HANDLE_FLAG_INHERIT)
+        win32api.SetHandleInformation(
+            handle, win32con.HANDLE_FLAG_INHERIT, win32con.HANDLE_FLAG_INHERIT
+        )
     flags = win32con.CREATE_SUSPENDED | win32con.CREATE_UNICODE_ENVIRONMENT
     environment = dict(os.environ)
     environment.update({"TMP": str(temp_dir), "TEMP": str(temp_dir)})

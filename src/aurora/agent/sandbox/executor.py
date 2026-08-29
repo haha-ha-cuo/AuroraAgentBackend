@@ -8,9 +8,10 @@ import subprocess
 import sys
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Literal, Protocol
+from typing import Any, Literal, Protocol
 
 MAX_OUTPUT_BYTES = 64 * 1024
 SandboxMode = Literal["read-only", "workspace-write", "danger-full-access"]
@@ -111,7 +112,7 @@ def run_process(
     stdin: str | None = None,
     max_output_bytes: int = MAX_OUTPUT_BYTES,
     popen_kwargs: dict | None = None,
-    on_started: Callable[[subprocess.Popen[bytes]], None] | None = None,
+    on_started: Callable[[subprocess.Popen[Any]], None] | None = None,
 ) -> ExecutionResult:
     """执行进程并以固定内存上限收集输出。"""
     started = time.monotonic()
@@ -136,8 +137,16 @@ def run_process(
     stderr = bytearray()
     truncated = [False, False]
     threads = [
-        threading.Thread(target=_drain, args=(process.stdout, stdout, max_output_bytes, truncated, 0), daemon=True),
-        threading.Thread(target=_drain, args=(process.stderr, stderr, max_output_bytes, truncated, 1), daemon=True),
+        threading.Thread(
+            target=_drain,
+            args=(process.stdout, stdout, max_output_bytes, truncated, 0),
+            daemon=True,
+        ),
+        threading.Thread(
+            target=_drain,
+            args=(process.stderr, stderr, max_output_bytes, truncated, 1),
+            daemon=True,
+        ),
     ]
     if stdin is not None:
         threads.append(
@@ -197,7 +206,7 @@ def _write_stdin(pipe, content: bytes) -> None:
         pipe.close()
 
 
-def _kill_process_tree(process: subprocess.Popen[bytes]) -> None:
+def _kill_process_tree(process: subprocess.Popen[Any]) -> None:
     """终止执行进程及其派生进程。"""
     if os.name == "posix":
         try:

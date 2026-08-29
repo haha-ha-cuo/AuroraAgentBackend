@@ -30,7 +30,9 @@ class FakePlanner:
 
     def plan(self, goal):
         self.goals.append(goal)
-        return [{"id": "1", "description": goal, "effort": Effort.LOW, "tool": "list_files", "args": {}}]
+        return [
+            {"id": "1", "description": goal, "effort": Effort.LOW, "tool": "list_files", "args": {}}
+        ]
 
 
 def make_session():

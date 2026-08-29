@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import operator
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, NotRequired, TypedDict
 
 
-class Effort(str, Enum):
+class Effort(StrEnum):
     """推理强度（reasoning effort）。"""
 
     LOW = "low"

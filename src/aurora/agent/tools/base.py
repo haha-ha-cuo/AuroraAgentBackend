@@ -8,14 +8,15 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Callable, Mapping, get_args, get_origin, get_type_hints
+from enum import StrEnum
+from typing import Any, get_args, get_origin, get_type_hints
 
 F = Callable[..., str]
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """工具风险分级。"""
 
     READ = "read"

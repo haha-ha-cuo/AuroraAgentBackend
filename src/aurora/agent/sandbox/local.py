@@ -30,7 +30,7 @@ class LocalSandboxExecutor:
     ) -> None:
         if mode not in {"read-only", "workspace-write", "danger-full-access"}:
             raise ValueError(f"未知沙箱模式: {mode}")
-        self.mode = mode
+        self.mode: SandboxMode = mode
         self._max_output_bytes = max_output_bytes
         self._probe_timeout = probe_timeout
         self._platform = platform_name or sys.platform
@@ -103,9 +103,13 @@ class LocalSandboxExecutor:
             "seatbelt": (None, "sandbox-exec:"),
             "windows-acl": (127, "aurora-windows-acl:"),
         }
-        expected_exit, signature = signatures.get(self._runner, (None, ""))
+        expected_exit, signature = signatures.get(self._runner or "", (None, ""))
         exit_matches = expected_exit is None or result.exit_code == expected_exit
-        if signature and exit_matches and any(line.startswith(signature) for line in result.stderr.splitlines()):
+        if (
+            signature
+            and exit_matches
+            and any(line.startswith(signature) for line in result.stderr.splitlines())
+        ):
             raise SandboxUnavailableError(result.stderr.strip())
 
     def _candidates(self) -> tuple[str, ...]:
@@ -190,9 +194,18 @@ class LocalSandboxExecutor:
     @staticmethod
     def _seatbelt_args(cwd: Path, mode: SandboxMode) -> list[str]:
         """构造 Seatbelt 文件写入 profile。"""
-        forms = ["(version 1)", "(allow default)", "(deny file-write*)", '(allow file-write* (literal "/dev/null"))']
+        forms = [
+            "(version 1)",
+            "(allow default)",
+            "(deny file-write*)",
+            '(allow file-write* (literal "/dev/null"))',
+        ]
         if mode == "workspace-write":
-            roots = {str(cwd.resolve()), str(Path("/tmp").resolve()), str(Path(os.getenv("TMPDIR", "/tmp")).resolve())}
+            roots = {
+                str(cwd.resolve()),
+                str(Path("/tmp").resolve()),
+                str(Path(os.getenv("TMPDIR", "/tmp")).resolve()),
+            }
             grants = " ".join(f'(subpath "{_escape_sbpl(root)}")' for root in sorted(roots))
             forms.append(f"(allow file-write* {grants})")
         return ["-p", " ".join(forms)]

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from fnmatch import fnmatchcase
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import yaml
 from mcp import types

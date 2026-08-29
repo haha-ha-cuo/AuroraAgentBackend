@@ -36,9 +36,7 @@ def test_read_task_passes_deny_gate(tmp_path):
 
 def test_write_task_blocked_by_deny_gate(tmp_path):
     set_sandbox(Sandbox(root=tmp_path))
-    planner = _StubPlanner(
-        [_task("1", "write_file", {"path": "a.py", "content": "print(1)"})]
-    )
+    planner = _StubPlanner([_task("1", "write_file", {"path": "a.py", "content": "print(1)"})])
     graph = build_delegation_graph(planner, get_available_tools(), ConfirmationGate(DenyApprover()))
     state = graph.invoke({"goal": "g"})
     assert state["results"][0]["ok"] is False

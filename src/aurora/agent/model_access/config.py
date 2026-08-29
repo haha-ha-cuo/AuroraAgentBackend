@@ -6,6 +6,7 @@ import os
 
 from dotenv import find_dotenv, load_dotenv
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 # 向上搜索并加载项目根目录的 .env，不依赖 uv run 是否自动加载
 load_dotenv(find_dotenv())
@@ -32,4 +33,5 @@ def build_llm():
             "请在项目根目录 .env 中配置（参考 .env.example）。"
         )
 
-    return ChatOpenAI(api_key=api_key, model=model, base_url=base_url, temperature=0)
+    assert api_key is not None and model is not None
+    return ChatOpenAI(api_key=SecretStr(api_key), model=model, base_url=base_url, temperature=0)

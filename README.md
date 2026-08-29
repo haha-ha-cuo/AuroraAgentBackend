@@ -78,6 +78,8 @@ tests/                  # pytest 测试
 uv sync
 ```
 
+真实 API 密钥只能保存在被 Git 忽略的 `.env` 或系统钥匙串中，绝不要提交到仓库。
+
 ### 运行最小 demo（mock 模式，无需密钥）
 
 ```bash
@@ -124,7 +126,7 @@ uv run aurora runtime
 uv run aurora runtime --port 8765
 ```
 
-WebSocket 地址为 `ws://127.0.0.1:8765/ws`。同级 `frontend` 项目的 `pnpm dev` 会自动执行这条命令，无需手动启动。
+WebSocket 地址为 `ws://127.0.0.1:8765/ws`。同级 `AuroraAgentFrontend` 项目的 `pnpm dev` 会自动执行这条命令，无需手动启动。
 
 ```json
 {"id":"1","method":"workspace.validate","params":{"path":"/path/to/project"}}
@@ -188,3 +190,38 @@ AURORA_LOG_LEVEL=DEBUG uv run aurora demo
 ## 参考文档
 
 设计文档、架构决策（ADR）与路线图见 [AuroraAgent-demo](https://haha-ha-cuo.github.io/AuroraAgent-demo/)。
+
+仓库内决策记录见 [`docs/adr/`](docs/adr/README.md)。
+
+## 开发指南
+
+两个仓库推荐作为同级目录放置。贡献流程、分支和提交规范见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。提交后端代码前运行：
+
+```bash
+uv run pre-commit run --all-files
+```
+
+## 测试
+
+```bash
+uv run pytest
+uv run pyright
+uv run ruff check .
+uv run pip-audit
+```
+
+测试默认收集分支覆盖率并要求总覆盖率不低于 60%。
+
+## 发布
+
+版本遵循 SemVer。合并 Conventional Commits 后，Release Please 自动维护版本 PR 与 `CHANGELOG.md`；版本 PR 合并产生的 `v*` tag 会触发 wheel/sdist、GitHub Release 和 PyPI Trusted Publishing。
+
+## 常见问题
+
+- `uv` 缺失：按照 uv 官方文档安装后重新运行 `uv sync --frozen`。
+- API 配置失败：从 `.env.example` 复制 `.env` 并填写模型、端点和密钥。
+- 8765 端口占用：关闭已有开发运行时，或显式设置 `VITE_RUNTIME_WS` 后手动管理后端。
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)。
