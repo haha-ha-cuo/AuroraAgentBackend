@@ -2,6 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.2.0](https://github.com/haha-ha-cuo/AuroraAgentBackend/compare/auroraapp-v0.1.0...auroraapp-v0.2.0) (2026-08-29)
+
+
+### Features
+
+* add websocket transport layer + engineering docs ([6bd9a50](https://github.com/haha-ha-cuo/AuroraAgentBackend/commit/6bd9a50ed12c9a58aa9f8572914ef4e041c9a4d4))
+
 ## [Unreleased]
 
 ### Added
