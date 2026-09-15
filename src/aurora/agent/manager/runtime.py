@@ -15,19 +15,19 @@ from langgraph.types import Command
 from aurora.agent.store.model import ConversationSession, Project
 from aurora.text import sanitize_text, sanitize_value
 
-from .core import LLMClarifier, LLMPlanner
-from .core.state import DelegationState
-from .mcp import (
+from ..core import LLMClarifier, LLMPlanner
+from ..core.state import DelegationState
+from ..mcp import (
     McpPackage,
     McpPackageRegistry,
     McpServerConfig,
     StdioMcpClient,
     build_mcp_tools,
 )
-from .model_access import build_llm
-from .sandbox import Sandbox, SandboxMode, create_sandbox
-from .store import GitRepository, GitView
-from .tools import Tool
+from ..model_access import build_llm
+from ..sandbox import Sandbox, SandboxMode, create_sandbox
+from ..store import GitRepository, GitView
+from ..tools import Tool
 
 if TYPE_CHECKING:
     from .workflows import WorkflowSession
@@ -269,9 +269,9 @@ class AgentRuntime:
         configured_llm_factory=None,
         capture=None,
     ) -> None:
-        from .preview import BrowserCapture
-        from .store.database import Database
-        from .store.records import Records
+        from ..preview import BrowserCapture
+        from ..store.database import Database
+        from ..store.records import Records
 
         self._custom_llm = llm_factory is not build_llm
         self._configured_llm_factory = configured_llm_factory
@@ -308,7 +308,7 @@ class AgentRuntime:
         title: str = "新对话",
     ) -> WorkflowSession:
         """为指定工作区创建独立 Agent 会话。"""
-        from .store.database import now, uid
+        from ..store.database import now, uid
 
         if approval_mode not in {"interactive", "always", "never"}:
             raise ValueError("未知审批策略")

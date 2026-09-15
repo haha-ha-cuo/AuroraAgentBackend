@@ -12,7 +12,7 @@ import pytest
 from websockets.asyncio.client import connect
 
 from aurora.agent.core import Effort, NoClarifier
-from aurora.agent.runtime import AgentRuntime, validate_workspace
+from aurora.agent.manager.runtime import AgentRuntime, validate_workspace
 from aurora.agent.sandbox import Sandbox, UnsafeSubprocessExecutor
 from aurora.agent.transport import RuntimeApi, serve_ndjson, serve_websocket
 from aurora.cli.main import build_parser

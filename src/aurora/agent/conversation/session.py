@@ -12,8 +12,8 @@ from sqlalchemy import func, select
 from aurora.agent.store.model import ConversationSession as SessionEntity
 from aurora.text import sanitize_text
 
-from .core import Planner, Task, TraceEvent
-from .store.model import Message
+from ..core import Planner, Task, TraceEvent
+from ..store.model import Message
 
 SYSTEM_PROMPT = """你是 Aurora，一个运行在用户本机的项目级 AI Agent。
 用清晰、直接的语言回答用户；不知道的信息明确说明，不虚构已经执行的操作。

@@ -11,8 +11,8 @@ from uuid import uuid4
 from aurora.protocol import PROTOCOL_VERSION
 from aurora.text import sanitize_text, sanitize_value
 
+from ..manager.runtime import AgentRuntime, RunUpdate, validate_workspace
 from ..mcp import McpClientError, McpServerConfig
-from ..runtime import AgentRuntime, RunUpdate, validate_workspace
 from ..sandbox import SandboxMode
 from ..store import GitRepository, GitView
 

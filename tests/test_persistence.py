@@ -11,11 +11,11 @@ from langchain_core.messages import AIMessage
 from sqlalchemy.exc import IntegrityError
 
 from aurora.agent.core import Effort, NoClarifier
-from aurora.agent.runtime import AgentRuntime
+from aurora.agent.manager.runtime import AgentRuntime
+from aurora.agent.manager.workflows import Finding, ReviewResult
 from aurora.agent.sandbox import Sandbox, UnsafeSubprocessExecutor
 from aurora.agent.store.database import Database
 from aurora.agent.transport import RuntimeApi
-from aurora.agent.workflows import Finding, ReviewResult
 
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII="

@@ -8,6 +8,7 @@ from pathlib import Path
 from mcp import types
 
 from aurora.agent.core import Effort, NoClarifier
+from aurora.agent.manager.runtime import AgentRuntime
 from aurora.agent.mcp import (
     McpPackageRegistry,
     McpServerConfig,
@@ -15,7 +16,6 @@ from aurora.agent.mcp import (
     build_mcp_tools,
     load_package_directory,
 )
-from aurora.agent.runtime import AgentRuntime
 from aurora.agent.sandbox import Sandbox, UnsafeSubprocessExecutor
 from aurora.agent.tools import RiskLevel
 from aurora.agent.transport import RuntimeApi

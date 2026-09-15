@@ -4,6 +4,10 @@
 
 供应商、模型和固定工作流仍在「设置」管理。文本和多模态模型可执行，多模态第一版支持图片理解；向量模型仅登记展示，不能作为执行角色。旧 Agent 迁移后默认不开放调用。
 
+## 代码位置
+
+注册、状态、运行时和委派逻辑统一位于 `aurora.agent.manager`。公共入口为 `AgentRegistry` 与 `AgentRuntime`；流程实现位于 `manager.workflows`，子执行实现位于 `manager.delegation`。对话和预览分别位于 `conversation`、`preview` 功能包。
+
 ## 管理协议
 
 沿用协议 v1 的 WebSocket 和桌面 NDJSON 请求，扩展字段通过既有 `data` 对象提交；写入字段为 snake_case，返回实体字段为 camelCase。

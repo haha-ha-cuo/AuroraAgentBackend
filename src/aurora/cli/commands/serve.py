@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.tree import Tree
 
 from aurora.agent.conversation import ConversationSession, SessionReply
-from aurora.agent.runtime import AgentRuntime
+from aurora.agent.manager.runtime import AgentRuntime
 from aurora.cli.workflow import respond_to_interrupt
 from aurora.eval import JsonlFeedbackStore
 

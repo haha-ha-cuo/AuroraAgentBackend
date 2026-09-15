@@ -51,6 +51,9 @@ src/aurora/
 ├── logging.py          # 统一彩色日志（RichHandler）
 ├── cli/                # 命令行入口（一个命令一个文件）
 ├── agent/
+│   ├── manager/        # Agent 注册、状态、运行时、委派与协作流程
+│   ├── conversation/   # 持续对话与斜杠指令
+│   ├── preview/        # 受限预览与浏览器截图
 │   ├── core/           # 委派图 + 规划器 + 推理强度
 │   ├── tools/          # 工具抽象 + 内置工具 + 沙箱工具 + 风险分级
 │   ├── safety/         # 确认门 / 安全权限模型

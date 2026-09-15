@@ -139,7 +139,7 @@ class PersistenceApi:
         if method not in self.capabilities:
             raise ValueError("未知持久化接口")
         if method in {"agent.status", "agent.test"}:
-            from ..registry import AgentRegistry
+            from ..manager import AgentRegistry
 
             registry = AgentRegistry(self.runtime)
             return registry.status() if method == "agent.status" else registry.test(params["id"])

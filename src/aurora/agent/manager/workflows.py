@@ -17,14 +17,13 @@ from sqlalchemy import update as orm_update
 
 from aurora.agent.store.model import ConversationSession, Project, ReviewArtifact
 
-from .conversation import SYSTEM_PROMPT, _message_text
-from .core import build_delegation_graph
-from .model_access.config import build_configured_llm
-from .preview import validate_preview
-from .runtime import AgentSession, RuntimeInterrupt, RunUpdate
-from .safety import build_gate
-from .store.database import dumps, now, uid
-from .store.model import (
+from ..conversation.session import SYSTEM_PROMPT, _message_text
+from ..core import build_delegation_graph
+from ..model_access.config import build_configured_llm
+from ..preview import validate_preview
+from ..safety import build_gate
+from ..store.database import dumps, now, uid
+from ..store.model import (
     AgentRun,
     Interaction,
     Review,
@@ -32,7 +31,8 @@ from .store.model import (
     Run,
     Task,
 )
-from .store.records import decode
+from ..store.records import decode
+from .runtime import AgentSession, RuntimeInterrupt, RunUpdate
 
 
 class Finding(BaseModel):
@@ -105,8 +105,8 @@ class WorkflowSession(AgentSession):
 
     def _tools(self, agent):
         """按角色权限过滤当前运行时工具。"""
-        from .store import build_git_tools
-        from .tools import build_sandbox_tools, get_available_tools
+        from ..store import build_git_tools
+        from ..tools import build_sandbox_tools, get_available_tools
 
         tools = get_available_tools()
         tools.update(build_sandbox_tools(self.sandbox))

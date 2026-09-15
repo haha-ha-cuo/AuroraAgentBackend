@@ -12,7 +12,7 @@ from sqlalchemy import select
 from test_persistence import runtime_at
 
 from aurora.agent.core import Effort
-from aurora.agent.registry import AgentRegistry
+from aurora.agent.manager.registry import AgentRegistry
 from aurora.agent.store.database import Database
 from aurora.agent.store.model import AgentRun
 
@@ -217,7 +217,7 @@ def test_delegate_rejection_and_close_settle_child(tmp_path, monkeypatch):
 def test_delegate_validates_and_passes_actual_images(tmp_path, monkeypatch, model_type, foreign):
     from test_persistence import PNG
 
-    from aurora.agent.delegation import execute_delegate
+    from aurora.agent.manager.delegation import execute_delegate
     from aurora.agent.store.database import dumps, now, uid
     from aurora.agent.store.model import Run, Task
 
